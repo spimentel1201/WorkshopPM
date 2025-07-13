@@ -12,6 +12,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { Product } from '@/types/inventory';
 import { useAuth } from '@/hooks/useAuth';
 import { UserRole } from '@/types/auth';
+import colors from '@/constants/colors';
 
 const { width } = Dimensions.get('window');
 const isTablet = width > 768;
