@@ -1,43 +1,121 @@
-import { Tabs } from 'expo-router';
-import React from 'react';
-import { Platform } from 'react-native';
+import { Tabs } from "expo-router";
+import { useEffect, useState } from "react";
+import { router } from "expo-router";
+import { Home, ClipboardList, ShoppingCart, Settings, Users, Package, FileText } from "lucide-react-native";
 
-import { HapticTab } from '@/components/HapticTab';
-import { IconSymbol } from '@/components/ui/IconSymbol';
-import TabBarBackground from '@/components/ui/TabBarBackground';
-import { Colors } from '@/constants/Colors';
-import { useColorScheme } from '@/hooks/useColorScheme';
+import { useTheme } from "@/hooks/useTheme";
+import { useAuth } from "@/hooks/useAuth";
+import { UserRole } from "@/types/auth";
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
+  const { user, isAuthenticated } = useAuth();
+  const { theme } = useTheme();
+  const [isRouterReady, setIsRouterReady] = useState(false);
+
+  useEffect(() => {
+    const checkRouter = () => {
+      try {
+        if (router.canGoBack !== undefined) {
+          setIsRouterReady(true);
+        } else {
+          setTimeout(checkRouter, 100);
+        }
+      } catch (error) {
+        setTimeout(checkRouter, 100);
+      }
+    };
+    checkRouter();
+  }, []);
+
+  useEffect(() => {
+    if (isRouterReady && !isAuthenticated) {
+      try {
+        router.replace('/login');
+      } catch (error) {
+        console.warn('Navigation error:', error);
+      }
+    }
+  }, [isAuthenticated, isRouterReady]);
+
+  if (!isAuthenticated || !isRouterReady) {
+    return null;
+  }
 
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
-        headerShown: false,
-        tabBarButton: HapticTab,
-        tabBarBackground: TabBarBackground,
-        tabBarStyle: Platform.select({
-          ios: {
-            // Use a transparent background on iOS to show the blur effect
-            position: 'absolute',
-          },
-          default: {},
-        }),
-      }}>
+        tabBarActiveTintColor: theme.primary[500],
+        tabBarInactiveTintColor: theme.text.tertiary,
+        headerShown: true,
+        tabBarStyle: {
+          backgroundColor: theme.surface,
+          borderTopColor: theme.border,
+          height: 60,
+          paddingBottom: 8,
+        },
+        tabBarLabelStyle: {
+          fontSize: 12,
+          fontWeight: '500' as const,
+        },
+        headerStyle: {
+          backgroundColor: theme.surface,
+        },
+        headerTitleStyle: {
+          color: theme.text.primary,
+          fontWeight: '600' as const,
+        },
+        headerTintColor: theme.text.primary,
+      }}
+    >
       <Tabs.Screen
-        name="index"
+        name="home"
         options={{
-          title: 'Home',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
+          title: "Inicio",
+          tabBarIcon: ({ color }) => <Home size={24} color={color} />,
         }}
       />
       <Tabs.Screen
-        name="explore"
+        name="index"
         options={{
-          title: 'Explore',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
+          title: "Órdenes",
+          tabBarIcon: ({ color }) => <ClipboardList size={24} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="budgets"
+        options={{
+          title: "Presupuestos",
+          tabBarIcon: ({ color }) => <FileText size={24} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="pos"
+        options={{
+          title: "Ventas",
+          tabBarIcon: ({ color }) => <ShoppingCart size={24} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="inventory"
+        options={{
+          title: "Inventario",
+          tabBarIcon: ({ color }) => <Package size={24} color={color} />,
+        }}
+      />
+      {user?.role === UserRole.ADMIN && (
+        <Tabs.Screen
+          name="users"
+          options={{
+            title: "Usuarios",
+            tabBarIcon: ({ color }) => <Users size={24} color={color} />,
+          }}
+        />
+      )}
+      <Tabs.Screen
+        name="settings"
+        options={{
+          title: "Ajustes",
+          tabBarIcon: ({ color }) => <Settings size={24} color={color} />,
         }}
       />
     </Tabs>
