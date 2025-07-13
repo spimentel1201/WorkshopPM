@@ -6,9 +6,9 @@ module.exports = function (api) {
       [
         'module-resolver',
         {
-          root: ['./'],
+          root: [__dirname],
           alias: {
-            '@': './',
+            '@': __dirname,
           },
         },
       ],
