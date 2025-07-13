@@ -8,7 +8,7 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/EmptyState';
-import colors from '@/constants/colors';
+import colors from '../../constants/colors';
 import { Budget } from '@/types/repair';
 import { useAuth } from '@/hooks/useAuth';
 import { UserRole } from '@/types/auth';
