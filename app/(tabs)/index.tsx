@@ -8,10 +8,11 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { StatusBadge } from '@/components/StatusBadge';
 import { EmptyState } from '@/components/EmptyState';
-import colors from '@/constants/colors';
 import { RepairOrder, RepairStatus } from '@/types/repair';
 import { useAuth } from '@/hooks/useAuth';
+import { useTheme } from '@/hooks/useTheme';
 import { UserRole } from '@/types/auth';
+import type { ColorScheme } from '@/constants/colors';
 
 // Mock data for repair orders
 const mockRepairOrders: RepairOrder[] = [
@@ -98,8 +99,11 @@ const mockRepairOrders: RepairOrder[] = [
 
 export default function RepairOrdersScreen() {
   const { user } = useAuth();
+  const { theme } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<RepairStatus | null>(null);
+  const [statusFilter, setStatusFilter] = useState<RepairStatus | 'ALL'>('ALL');
+
+  const styles = getStyles(theme);
 
   // Fetch repair orders
   const { data: repairOrders, isLoading } = useQuery({
@@ -127,7 +131,7 @@ export default function RepairOrdersScreen() {
         device.model.toLowerCase().includes(searchQuery.toLowerCase())
       );
     
-    const matchesStatus = statusFilter ? order.status === statusFilter : true;
+    const matchesStatus = statusFilter === 'ALL' ? true : order.status === statusFilter;
     
     return matchesSearch && matchesStatus;
   });
@@ -154,11 +158,11 @@ export default function RepairOrdersScreen() {
           </View>
           
           <View style={styles.deviceInfo}>
-            <Text style={styles.deviceName}>
+            <Text style={styles.deviceBrand}>
               {device.brand} {device.model}
             </Text>
             <Text style={styles.deviceType}>
-              {device.type.replace('_', ' ')}
+              {device.type?.replace('_', ' ') || ''}
             </Text>
           </View>
           
@@ -171,7 +175,7 @@ export default function RepairOrdersScreen() {
               {new Date(item.createdAt).toLocaleDateString()}
             </Text>
             {item.devices.length > 1 && (
-              <Text style={styles.multipleDevices}>
+              <Text style={[styles.multipleDevices, { color: theme.primary[600] }]}>
                 +{item.devices.length - 1} dispositivos más
               </Text>
             )}
@@ -183,7 +187,7 @@ export default function RepairOrdersScreen() {
 
   const renderEmptyState = () => (
     <EmptyState
-      icon={<ClipboardList size={48} color={colors.neutral['400']} />}
+      icon={<ClipboardList size={48} color={theme.text.tertiary} />}
       title="No hay órdenes de reparación"
       description="Crea una nueva orden para comenzar a gestionar las reparaciones."
       actionLabel="Crear Orden"
@@ -194,36 +198,88 @@ export default function RepairOrdersScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <View style={styles.searchContainer}>
-          <Search size={20} color={colors.neutral['500']} style={styles.searchIcon} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Buscar por cliente, teléfono..."
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-        </View>
-        
-        <Button
-          onPress={() => {/* Toggle filter modal */}}
-          variant="outline"
-          size="sm"
-          leftIcon={<Filter size={18} color={colors.primary['500']} />}
-        >
-          Filtrar
-        </Button>
-      </View>
-
-      {user?.role === UserRole.ADMIN && (
-        <View style={styles.actionContainer}>
+        <Text style={styles.title}>Órdenes de Reparación</Text>
+        {user?.role === UserRole.ADMIN && (
           <Button
-            onPress={handleCreateOrder}
-            leftIcon={<Plus size={18} color={colors.white} />}
+            onPress={() => router.push('/orders/create')}
+            size="sm"
+            leftIcon={<Plus size={16} color={theme.white} />}
           >
             Nueva Orden
           </Button>
+        )}
+      </View>
+
+      <View style={styles.searchContainer}>
+        <View style={styles.searchInputContainer}>
+          <Search size={20} color={theme.text.tertiary} style={styles.searchIcon} />
+          <TextInput
+            style={[styles.searchInput, { color: theme.input.text }]}
+            placeholder="Buscar órdenes..."
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholderTextColor={theme.text.tertiary}
+          />
         </View>
-      )}
+        <Button 
+          onPress={() => {}} 
+          variant="outline" 
+          size="sm"
+        >
+          <Filter size={16} color={theme.primary[500]} />
+        </Button>
+      </View>
+
+      <View style={styles.filterContainer}>
+        <Pressable
+          style={[
+            styles.filterButton, 
+            statusFilter === 'ALL' && {
+              ...styles.activeFilter,
+              backgroundColor: theme.primary[500]
+            }
+          ]}
+          onPress={() => setStatusFilter('ALL')}
+        >
+          <Text style={[
+            styles.filterText, 
+            { color: theme.text.primary },
+            statusFilter === 'ALL' && {
+              ...styles.activeFilterText,
+              color: theme.white
+            }
+          ]}>
+            Todas
+          </Text>
+        </Pressable>
+        {Object.values(RepairStatus).map((status) => (
+          <Pressable
+            key={status}
+            style={[
+              styles.filterButton, 
+              statusFilter === status && {
+                ...styles.activeFilter,
+                backgroundColor: theme.primary[500]
+              }
+            ]}
+            onPress={() => setStatusFilter(status)}
+          >
+            <Text style={[
+              styles.filterText, 
+              { color: theme.text.primary },
+              statusFilter === status && {
+                ...styles.activeFilterText,
+                color: theme.white
+              }
+            ]}>
+              {status === 'PENDING' ? 'Pendientes' : 
+               status === 'IN_PROGRESS' ? 'En Progreso' :
+               status === 'COMPLETED' ? 'Completadas' :
+               status === 'DELIVERED' ? 'Entregadas' : 'Canceladas'}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
 
       <FlatList
         data={filteredOrders}
@@ -236,46 +292,92 @@ export default function RepairOrdersScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (theme: ColorScheme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
-    padding: 16,
+    backgroundColor: theme.background,
   },
   header: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    padding: 16,
+    backgroundColor: theme.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.border,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: theme.text.primary,
   },
   searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    paddingBottom: 8,
+    backgroundColor: theme.surface,
+  },
+  searchInputContainer: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.white,
+    backgroundColor: theme.input.background,
     borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.neutral['300'],
-    marginRight: 8,
+    paddingHorizontal: 8,
     height: 40,
+    borderWidth: 1,
+    borderColor: theme.input.border,
   },
   searchIcon: {
-    marginLeft: 12,
+    marginRight: 8,
   },
   searchInput: {
     flex: 1,
     height: '100%',
     paddingHorizontal: 8,
     fontSize: 16,
+    color: theme.input.text,
+    backgroundColor: 'transparent',
   },
-  actionContainer: {
-    marginBottom: 16,
-    alignItems: 'flex-end',
+  filterContainer: {
+    flexDirection: 'row',
+    padding: 16,
+    paddingTop: 0,
+    backgroundColor: theme.surface,
+    paddingBottom: 12,
+  },
+  filterButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    marginRight: 8,
+    backgroundColor: theme.input.background,
+  },
+  activeFilter: {
+    backgroundColor: theme.primary[500],
+  },
+  filterText: {
+    fontSize: 14,
+  },
+  activeFilterText: {
+    color: theme.white,
+    fontWeight: '500',
   },
   listContainer: {
-    flexGrow: 1,
+    padding: 16,
+    paddingTop: 8,
   },
   orderCard: {
     marginBottom: 12,
+    backgroundColor: theme.surface,
+    borderRadius: 8,
+    padding: 16,
+    shadowColor: theme.black,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   orderHeader: {
     flexDirection: 'row',
@@ -284,41 +386,42 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   customerName: {
-    fontSize: 16,
-    fontWeight: 'bold' as const,
-    color: colors.neutral['900'],
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 4,
   },
   deviceInfo: {
     marginBottom: 4,
   },
-  deviceName: {
+  deviceBrand: {
     fontSize: 15,
     fontWeight: '500' as const,
-    color: colors.neutral['800'],
+    color: theme.text.primary,
   },
   deviceType: {
-    fontSize: 14,
-    color: colors.neutral['600'],
-    marginBottom: 4,
+    fontSize: 13,
+    color: theme.text.secondary,
+    marginTop: 2,
   },
   issueText: {
     fontSize: 14,
-    color: colors.neutral['700'],
-    marginBottom: 8,
+    marginBottom: 12,
   },
   orderFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 4,
+    borderTopWidth: 1,
+    borderTopColor: theme.border,
+    paddingTop: 12,
   },
   dateText: {
     fontSize: 12,
-    color: colors.neutral['500'],
+    color: theme.text.secondary,
   },
   multipleDevices: {
     fontSize: 12,
-    color: colors.primary['600'],
     fontWeight: '500' as const,
+    color: theme.text.secondary,
   },
 });

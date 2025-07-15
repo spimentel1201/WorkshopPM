@@ -8,7 +8,7 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { StatusBadge } from '@/components/StatusBadge';
-import colors from '@/constants/colors';
+import { useTheme } from '@/hooks/useTheme';
 import { RepairOrder, RepairStatus } from '@/types/repair';
 import { useAuth } from '@/hooks/useAuth';
 import { UserRole } from '@/types/auth';
@@ -96,9 +96,172 @@ const mockRepairOrders: RepairOrder[] = [
   },
 ];
 
+const getStyles = (theme: any) => StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: theme.background,
+  },
+  contentContainer: {
+    padding: 16,
+    paddingBottom: 32,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold' as const,
+    color: theme.text.primary,
+    marginBottom: 12,
+  },
+  statusHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  customerInfo: {
+    marginBottom: 16,
+  },
+  customerName: {
+    fontSize: 20,
+    fontWeight: 'bold' as const,
+    color: theme.text.primary,
+    marginBottom: 8,
+  },
+  customerDetail: {
+    fontSize: 16,
+    color: theme.text.secondary,
+    marginBottom: 4,
+  },
+  contactButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  deviceInfo: {
+    marginBottom: 16,
+  },
+  deviceName: {
+    fontSize: 18,
+    fontWeight: 'bold' as const,
+    color: theme.text.primary,
+    marginBottom: 8,
+  },
+  deviceDetail: {
+    fontSize: 14,
+    color: theme.text.secondary,
+    marginBottom: 4,
+  },
+  issueSection: {
+    marginBottom: 16,
+  },
+  issueTitle: {
+    fontSize: 16,
+    fontWeight: '600' as const,
+    color: theme.text.primary,
+    marginBottom: 8,
+  },
+  issueText: {
+    fontSize: 14,
+    color: theme.text.secondary,
+    lineHeight: 20,
+  },
+  accessoriesSection: {
+    marginTop: 16,
+  },
+  accessoriesTitle: {
+    fontSize: 16,
+    fontWeight: '600' as const,
+    color: theme.text.primary,
+    marginBottom: 8,
+  },
+  accessoryItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: theme.surface,
+    borderRadius: 6,
+    marginBottom: 4,
+  },
+  accessoryName: {
+    fontSize: 14,
+    color: theme.text.primary,
+  },
+  accessoryStatus: {
+    fontSize: 12,
+    fontWeight: '500' as const,
+  },
+  included: {
+    color: theme.success,
+  },
+  notIncluded: {
+    color: theme.error,
+  },
+  diagnosisHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  diagnosisText: {
+    fontSize: 14,
+    color: theme.text.secondary,
+    lineHeight: 20,
+    fontStyle: 'italic',
+  },
+  diagnosisActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 8,
+    marginTop: 12,
+  },
+  timelineItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 16,
+  },
+  timelineContent: {
+    marginLeft: 12,
+    flex: 1,
+  },
+  timelineText: {
+    fontSize: 14,
+    fontWeight: '500' as const,
+    color: theme.text.primary,
+    marginBottom: 4,
+  },
+  timelineDate: {
+    fontSize: 12,
+    color: theme.text.tertiary,
+  },
+  diagnosisInput: {
+    borderWidth: 1,
+    borderColor: theme.border,
+    borderRadius: 6,
+    padding: 12,
+    backgroundColor: theme.background,
+    color: theme.text.primary,
+    textAlignVertical: 'top',
+    minHeight: 120,
+    marginTop: 8,
+  },
+});
+
 export default function OrderDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { user } = useAuth();
+  const { theme, isDark } = useTheme();
+  const styles = getStyles(theme);
   const queryClient = useQueryClient();
   const [diagnosis, setDiagnosis] = useState('');
   const [isEditingDiagnosis, setIsEditingDiagnosis] = useState(false);
@@ -222,8 +385,8 @@ export default function OrderDetailsScreen() {
       <Stack.Screen 
         options={{ 
           title: `Orden #${order.id}`,
-          headerStyle: { backgroundColor: colors.white },
-          headerTitleStyle: { color: colors.neutral[900] }
+          headerStyle: { backgroundColor: theme.background },
+          headerTitleStyle: { color: theme.text.primary }
         }} 
       />
       <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
@@ -238,52 +401,11 @@ export default function OrderDetailsScreen() {
             <Button
               onPress={() => handleStatusUpdate(nextStatus)}
               loading={updateStatusMutation.isPending}
-              leftIcon={<CheckCircle size={18} color={colors.white} />}
+              leftIcon={<CheckCircle size={18} color={theme.text.primary} />}
             >
               Marcar como {getStatusText(nextStatus)}
             </Button>
           )}
-        </Card>
-
-        {/* Customer Information */}
-        <Card>
-          <Text style={styles.sectionTitle}>Información del Cliente</Text>
-          <View style={styles.customerInfo}>
-            <Text style={styles.customerName}>{order.customerName}</Text>
-            <Text style={styles.customerDetail}>📞 {order.customerPhone}</Text>
-            {order.customerEmail && (
-              <Text style={styles.customerDetail}>✉️ {order.customerEmail}</Text>
-            )}
-          </View>
-          
-          <View style={styles.contactButtons}>
-            <Button
-              onPress={() => handleContactCustomer('phone')}
-              variant="outline"
-              size="sm"
-              leftIcon={<Phone size={16} color={colors.primary[500]} />}
-            >
-              Llamar
-            </Button>
-            <Button
-              onPress={() => handleContactCustomer('whatsapp')}
-              variant="outline"
-              size="sm"
-              leftIcon={<MessageCircle size={16} color={colors.primary[500]} />}
-            >
-              WhatsApp
-            </Button>
-            {order.customerEmail && (
-              <Button
-                onPress={() => handleContactCustomer('email')}
-                variant="outline"
-                size="sm"
-                leftIcon={<Mail size={16} color={colors.primary[500]} />}
-              >
-                Email
-              </Button>
-            )}
-          </View>
         </Card>
 
         {/* Device Information */}
@@ -317,67 +439,67 @@ export default function OrderDetailsScreen() {
               ))}
             </View>
           )}
-        </Card>
 
-        {/* Diagnosis Section */}
-        {user?.role === UserRole.TECHNICIAN && (
-          <Card>
-            <View style={styles.diagnosisHeader}>
-              <Text style={styles.sectionTitle}>Diagnóstico</Text>
-              {!isEditingDiagnosis && (
-                <Button
-                  onPress={() => {
-                    setDiagnosis(device.diagnosis || '');
-                    setIsEditingDiagnosis(true);
-                  }}
-                  variant="outline"
-                  size="sm"
-                  leftIcon={<Edit size={16} color={colors.primary[500]} />}
-                >
-                  Editar
-                </Button>
-              )}
-            </View>
-
-            {isEditingDiagnosis ? (
-              <View>
-                <Input
-                  placeholder="Ingrese el diagnóstico..."
-                  value={diagnosis}
-                  onChangeText={setDiagnosis}
-                  multiline
-                  numberOfLines={4}
-                />
-                <View style={styles.diagnosisActions}>
+          {/* Diagnosis Section */}
+          {user?.role === UserRole.TECHNICIAN && (
+            <View style={styles.diagnosisActions}>
+              <View style={styles.diagnosisHeader}>
+                <Text style={styles.issueTitle}>Diagnóstico</Text>
+                {!isEditingDiagnosis ? (
                   <Button
-                    onPress={() => setIsEditingDiagnosis(false)}
+                    onPress={() => {
+                      setDiagnosis(device.diagnosis || '');
+                      setIsEditingDiagnosis(true);
+                    }}
                     variant="outline"
                     size="sm"
+                    leftIcon={<Edit size={16} color={theme.primary[500]} />}
                   >
-                    Cancelar
+                    Editar
                   </Button>
-                  <Button
-                    onPress={handleDiagnosisUpdate}
-                    loading={updateDiagnosisMutation.isPending}
-                    size="sm"
-                  >
-                    Guardar
-                  </Button>
-                </View>
+                ) : (
+                  <View style={styles.diagnosisActions}>
+                    <Button
+                      onPress={() => setIsEditingDiagnosis(false)}
+                      variant="outline"
+                      size="sm"
+                    >
+                      Cancelar
+                    </Button>
+                    <Button
+                      onPress={handleDiagnosisUpdate}
+                      loading={updateDiagnosisMutation.isPending}
+                      leftIcon={<CheckCircle size={16} color={theme.text.primary} />}
+                    >
+                      Guardar
+                    </Button>
+                  </View>
+                )}
               </View>
-            ) : (
-              <Text style={styles.diagnosisText}>
-                {device.diagnosis || 'No hay diagnóstico registrado'}
-              </Text>
-            )}
-          </Card>
-        )}
+              
+              {isEditingDiagnosis ? (
+                <Input
+                  multiline
+                  numberOfLines={4}
+                  value={diagnosis}
+                  onChangeText={setDiagnosis}
+                  placeholder="Escribe el diagnóstico aquí..."
+                  style={styles.diagnosisInput}
+                />
+              ) : (
+                <Text style={styles.diagnosisText}>
+                  {device.diagnosis || 'No se ha realizado ningún diagnóstico'}
+                </Text>
+              )}
+            </View>
+          )}
+        </Card>
 
         {/* Order Timeline */}
         <Card>
-          <Text style={styles.sectionTitle}>Historial</Text>
+          <Text style={styles.sectionTitle}>Historial de la Orden</Text>
           <View style={styles.timelineItem}>
-            <Clock size={16} color={colors.neutral[500]} />
+            <Clock size={16} color={theme.text.tertiary} />
             <View style={styles.timelineContent}>
               <Text style={styles.timelineText}>Orden creada</Text>
               <Text style={styles.timelineDate}>
@@ -388,7 +510,7 @@ export default function OrderDetailsScreen() {
           
           {order.status !== RepairStatus.PENDING && (
             <View style={styles.timelineItem}>
-              <AlertCircle size={16} color={colors.info} />
+              <AlertCircle size={16} color={theme.info} />
               <View style={styles.timelineContent}>
                 <Text style={styles.timelineText}>Reparación iniciada</Text>
                 <Text style={styles.timelineDate}>
@@ -400,7 +522,7 @@ export default function OrderDetailsScreen() {
           
           {order.completedAt && (
             <View style={styles.timelineItem}>
-              <CheckCircle size={16} color={colors.success} />
+              <CheckCircle size={16} color={theme.success} />
               <View style={styles.timelineContent}>
                 <Text style={styles.timelineText}>Reparación completada</Text>
                 <Text style={styles.timelineDate}>
@@ -414,153 +536,3 @@ export default function OrderDetailsScreen() {
     </>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  contentContainer: {
-    padding: 16,
-    paddingBottom: 32,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 16,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold' as const,
-    color: colors.neutral[900],
-    marginBottom: 12,
-  },
-  statusHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  customerInfo: {
-    marginBottom: 16,
-  },
-  customerName: {
-    fontSize: 20,
-    fontWeight: 'bold' as const,
-    color: colors.neutral[900],
-    marginBottom: 8,
-  },
-  customerDetail: {
-    fontSize: 16,
-    color: colors.neutral[700],
-    marginBottom: 4,
-  },
-  contactButtons: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  deviceInfo: {
-    marginBottom: 16,
-  },
-  deviceName: {
-    fontSize: 18,
-    fontWeight: 'bold' as const,
-    color: colors.neutral[900],
-    marginBottom: 8,
-  },
-  deviceDetail: {
-    fontSize: 14,
-    color: colors.neutral[700],
-    marginBottom: 4,
-  },
-  issueSection: {
-    marginBottom: 16,
-  },
-  issueTitle: {
-    fontSize: 16,
-    fontWeight: '600' as const,
-    color: colors.neutral[800],
-    marginBottom: 8,
-  },
-  issueText: {
-    fontSize: 14,
-    color: colors.neutral[700],
-    lineHeight: 20,
-  },
-  accessoriesSection: {
-    marginTop: 16,
-  },
-  accessoriesTitle: {
-    fontSize: 16,
-    fontWeight: '600' as const,
-    color: colors.neutral[800],
-    marginBottom: 8,
-  },
-  accessoryItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    backgroundColor: colors.neutral[50],
-    borderRadius: 6,
-    marginBottom: 4,
-  },
-  accessoryName: {
-    fontSize: 14,
-    color: colors.neutral[800],
-  },
-  accessoryStatus: {
-    fontSize: 12,
-    fontWeight: '500' as const,
-  },
-  included: {
-    color: colors.success,
-  },
-  notIncluded: {
-    color: colors.error,
-  },
-  diagnosisHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  diagnosisText: {
-    fontSize: 14,
-    color: colors.neutral[700],
-    lineHeight: 20,
-    fontStyle: 'italic',
-  },
-  diagnosisActions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 8,
-    marginTop: 12,
-  },
-  timelineItem: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 16,
-  },
-  timelineContent: {
-    marginLeft: 12,
-    flex: 1,
-  },
-  timelineText: {
-    fontSize: 14,
-    fontWeight: '500' as const,
-    color: colors.neutral[800],
-    marginBottom: 4,
-  },
-  timelineDate: {
-    fontSize: 12,
-    color: colors.neutral[500],
-  },
-});

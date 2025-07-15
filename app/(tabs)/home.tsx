@@ -73,8 +73,9 @@ const mockLowStockItems = [
 ];
 
 export default function HomeScreen() {
-  const { theme } = useTheme();
   const { user } = useAuth();
+  const { theme } = useTheme();
+  const styles = getStyles(theme);
 
   // Fetch dashboard data
   const { data: stats, isLoading: statsLoading } = useQuery({
@@ -409,9 +410,10 @@ export default function HomeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (theme: any) => StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: theme.background,
   },
   contentContainer: {
     padding: 16,
@@ -429,7 +431,8 @@ const styles = StyleSheet.create({
   },
   userName: {
     fontSize: 24,
-    fontWeight: 'bold' as const,
+    fontWeight: 'bold',
+    color: theme.text.primary,
   },
   dateContainer: {
     flexDirection: 'row',
@@ -437,11 +440,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 20,
+    backgroundColor: theme.primary[500],
   },
   dateText: {
     fontSize: 14,
-    fontWeight: '500' as const,
+    fontWeight: '500',
     marginLeft: 6,
+    color: theme.white,
   },
   statsGrid: {
     flexDirection: 'row',
@@ -454,6 +459,8 @@ const styles = StyleSheet.create({
     minWidth: isTablet ? 200 : (width - 44) / 2,
     padding: 16,
     marginVertical: 0,
+    backgroundColor: theme.surface,
+    borderColor: theme.border,
   },
   statHeader: {
     flexDirection: 'row',
@@ -474,16 +481,18 @@ const styles = StyleSheet.create({
   },
   trendText: {
     fontSize: 12,
-    fontWeight: '500' as const,
+    fontWeight: '500',
     marginLeft: 2,
   },
   statValue: {
     fontSize: 24,
-    fontWeight: 'bold' as const,
+    fontWeight: 'bold',
+    color: theme.text.primary,
     marginBottom: 4,
   },
   statTitle: {
     fontSize: 14,
+    color: theme.text.secondary,
   },
   section: {
     marginBottom: 24,
@@ -496,7 +505,8 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: 'bold' as const,
+    fontWeight: '600',
+    color: theme.text.primary,
   },
   alertHeader: {
     flexDirection: 'row',
@@ -513,6 +523,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
     marginVertical: 0,
+    backgroundColor: theme.surface,
+    borderColor: theme.border,
   },
   actionIcon: {
     width: 48,
@@ -524,8 +536,9 @@ const styles = StyleSheet.create({
   },
   actionTitle: {
     fontSize: 14,
-    fontWeight: '500' as const,
+    fontWeight: '500',
     textAlign: 'center',
+    color: theme.text.primary,
   },
   orderItem: {
     flexDirection: 'row',
@@ -539,15 +552,18 @@ const styles = StyleSheet.create({
   },
   orderCustomer: {
     fontSize: 16,
-    fontWeight: '500' as const,
+    fontWeight: '500',
+    color: theme.text.primary,
     marginBottom: 2,
   },
   orderDevice: {
     fontSize: 14,
+    color: theme.text.secondary,
     marginBottom: 2,
   },
   orderDate: {
     fontSize: 12,
+    color: theme.text.tertiary,
   },
   orderStatus: {
     marginLeft: 12,
@@ -564,11 +580,13 @@ const styles = StyleSheet.create({
   },
   stockName: {
     fontSize: 16,
-    fontWeight: '500' as const,
+    fontWeight: '500',
+    color: theme.text.primary,
     marginBottom: 2,
   },
   stockLevel: {
     fontSize: 14,
+    color: theme.text.secondary,
   },
   performanceCard: {
     padding: 20,

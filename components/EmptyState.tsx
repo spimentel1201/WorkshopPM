@@ -1,7 +1,8 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { ReactNode } from 'react';
-import colors from '@/constants/colors';
 import { Button } from '@/components/ui/Button';
+import { useTheme } from '@/hooks/useTheme';
+import type { ColorScheme } from '@/constants/colors';
 
 interface EmptyStateProps {
   icon: ReactNode;
@@ -18,6 +19,8 @@ export const EmptyState = ({
   actionLabel,
   onAction,
 }: EmptyStateProps) => {
+  const { theme } = useTheme();
+  const styles = getStyles(theme);
   return (
     <View style={styles.container}>
       <View style={styles.iconContainer}>{icon}</View>
@@ -34,7 +37,7 @@ export const EmptyState = ({
   );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (theme: ColorScheme) => StyleSheet.create({
   container: {
     flex: 1,
     alignItems: 'center',
@@ -47,17 +50,19 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     fontWeight: 'bold' as const,
-    color: colors.neutral['800'],
+    color: theme.text.primary,
     marginBottom: 8,
     textAlign: 'center',
   },
   description: {
     fontSize: 16,
-    color: colors.neutral['600'],
+    color: theme.text.secondary,
     textAlign: 'center',
     marginBottom: 24,
   },
   actionContainer: {
+    width: '100%',
+    maxWidth: 200,
     marginTop: 8,
   },
 });

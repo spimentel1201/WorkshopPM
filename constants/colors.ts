@@ -49,6 +49,12 @@ export interface ColorScheme {
       secondary: string;
       tertiary: string;
     };
+    input: {
+      background: string;
+      placeholder: string;
+      text: string;
+      border: string;
+    };
   }
   
   const lightColors: ColorScheme = {
@@ -102,6 +108,12 @@ export interface ColorScheme {
       secondary: '#475569',
       tertiary: '#64748b',
     },
+    input: {
+      background: '#ffffff',
+      placeholder: '#94a3b8',
+      text: '#0f172a',
+      border: '#e2e8f0',
+    },
   };
   
   const darkColors: ColorScheme = {
@@ -154,6 +166,12 @@ export interface ColorScheme {
       primary: '#f8fafc',
       secondary: '#cbd5e1',
       tertiary: '#94a3b8',
+    },
+    input: {
+      background: '#1e293b',
+      placeholder: '#64748b',
+      text: '#f8fafc',
+      border: '#334155',
     },
   };
   

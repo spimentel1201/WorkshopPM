@@ -7,6 +7,7 @@ import { lightColors, darkColors, ColorScheme } from '@/constants/colors';
 export type ThemeMode = 'light' | 'dark' | 'system';
 
 interface ThemeContextType {
+  neutral: any;
   theme: ColorScheme;
   themeMode: ThemeMode;
   isDark: boolean;
@@ -64,6 +65,7 @@ const [ThemeProvider, useTheme] = createContextHook<ThemeContextType>(() => {
   const theme = isDark ? darkColors : lightColors;
 
   return {
+    neutral: theme.neutral,
     theme,
     themeMode,
     isDark,

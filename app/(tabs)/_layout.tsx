@@ -47,6 +47,17 @@ export default function TabLayout() {
         tabBarActiveTintColor: theme.primary[500],
         tabBarInactiveTintColor: theme.text.tertiary,
         headerShown: true,
+        headerStyle: {
+          backgroundColor: theme.surface,
+          elevation: 0,
+          shadowOpacity: 0,
+          borderBottomWidth: 1,
+          borderBottomColor: theme.border,
+        },
+        headerTitleStyle: {
+          color: theme.text.primary,
+          fontWeight: '600',
+        },
         tabBarStyle: {
           backgroundColor: theme.surface,
           borderTopColor: theme.border,
@@ -55,14 +66,7 @@ export default function TabLayout() {
         },
         tabBarLabelStyle: {
           fontSize: 12,
-          fontWeight: '500' as const,
-        },
-        headerStyle: {
-          backgroundColor: theme.surface,
-        },
-        headerTitleStyle: {
-          color: theme.text.primary,
-          fontWeight: '600' as const,
+          fontWeight: '500',
         },
         headerTintColor: theme.text.primary,
       }}
