@@ -1,106 +1,142 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { router } from 'expo-router';
-import React, { useState } from 'react';
-
-import { LoginRequest, LoginResponse, User } from '@/types/auth';
-
-// Mock API functions - replace with actual API calls
-const loginApi = async (credentials: LoginRequest): Promise<LoginResponse> => {
-  // Simulate API call
-  await new Promise(resolve => setTimeout(resolve, 1000));
-  
-  // Mock response
-  if (credentials.email === 'admin@example.com' && credentials.password === 'password') {
-    return {
-      user: {
-        id: '1',
-        name: 'Admin User',
-        email: 'admin@example.com',
-        role: 'ADMIN' as any,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      },
-      token: 'mock-jwt-token'
-    };
-  } else if (credentials.email === 'tech@example.com' && credentials.password === 'password') {
-    return {
-      user: {
-        id: '2',
-        name: 'Tech User',
-        email: 'tech@example.com',
-        role: 'TECHNICIAN' as any,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      },
-      token: 'mock-jwt-token'
-    };
-  }
-  
-  throw new Error('Invalid credentials');
-};
-
-const logoutApi = async (): Promise<void> => {
-  // Simulate API call
-  await new Promise(resolve => setTimeout(resolve, 500));
-};
+import { useState, useCallback, useEffect } from 'react';
+import { useRouter } from 'expo-router';
+import { LoginRequest, AuthState, User } from '@/types/auth';
+import api from '../src/lib/api';
+import { saveToken, getToken as getStoredToken, removeToken } from '../src/lib/storage';
 
 export const useAuth = () => {
-  const queryClient = useQueryClient();
-  const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
+  const [state, setState] = useState<AuthState>({
+    user: null,
+    token: null,
+    isAuthenticated: false,
+    isLoading: true,
+    error: null,
+  });
 
-  // Get current user from storage
-  const { data: currentUser } = useQuery({
-    queryKey: ['currentUser'],
-    queryFn: async () => {
-      const userJson = await AsyncStorage.getItem('user');
-      const token = await AsyncStorage.getItem('token');
+  // Verificar autenticación al cargar
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const token = await getStoredToken();
+        if (token) {
+          try {
+            // Intentamos obtener el perfil del usuario
+            const response = await api.get<User>('/auth/profile');
+            
+            // Si llegamos aquí, el token es válido pero puede que no haya datos de usuario
+            setState({
+              user: response.data || null, // Aceptamos null como usuario válido
+              token,
+              isAuthenticated: true,
+              isLoading: false,
+              error: null,
+            });
+          } catch (error: any) {
+            // Si el error es 204, el token es válido pero no hay datos de usuario
+            if (error.response?.status === 204) {
+              setState({
+                user: null,
+                token,
+                isAuthenticated: true,
+                isLoading: false,
+                error: null,
+              });
+            } else {
+              throw error;
+            }
+          }
+        } else {
+          setState(prev => ({ ...prev, isLoading: false }));
+        }
+      } catch (error) {
+        console.error('Error checking auth:', error);
+        await removeToken();
+        setState({
+          user: null,
+          token: null,
+          isAuthenticated: false,
+          isLoading: false,
+          error: 'Sesión expirada. Por favor, inicia sesión nuevamente.',
+        });
+      }
+    };
+
+    checkAuth();
+  }, []);
+
+  const login = useCallback(async (credentials: LoginRequest) => {
+    setState(prev => ({ ...prev, isLoading: true, error: null }));
+    
+    try {
+      console.log('Iniciando sesión con credenciales:', credentials);
+      const response = await api.post<{ access_token: string; user: User }>('/auth/login', credentials);
       
-      if (!userJson || !token) {
-        return null;
+      if (!response.data || !response.data.access_token) {
+        throw new Error('No se recibió un token válido del servidor');
       }
       
-      return JSON.parse(userJson) as User;
+      console.log('Token recibido, guardando...');
+      await saveToken(response.data.access_token);
+      
+      console.log('Actualizando estado de autenticación...');
+      // Actualizar el estado primero
+      setState({
+        user: response.data.user,
+        token: response.data.access_token,
+        isAuthenticated: true,
+        isLoading: false,
+        error: null,
+      });
+      
+      // No es necesario navegar aquí, el efecto en _layout.tsx lo manejará
+      return response.data.user;
+    } catch (error: any) {
+      console.error('Error en login:', error);
+      
+      let errorMessage = 'Error de conexión con el servidor';
+      
+      if (error.response) {
+        errorMessage = error.response.data?.message || 
+                     error.response.data?.error || 
+                     `Error ${error.response.status}: ${error.response.statusText}`;
+      } else if (error.request) {
+        errorMessage = 'No se pudo conectar con el servidor. Verifica tu conexión a internet.';
+      } else if (error.message === 'Network Error') {
+        errorMessage = 'Error de red. Verifica tu conexión a internet.';
+      }
+      
+      setState(prev => ({
+        ...prev,
+        isLoading: false,
+        error: errorMessage,
+      }));
+      
+      throw new Error(errorMessage);
     }
-  });
+  }, []);
 
-  // Login mutation
-  const loginMutation = useMutation({
-    mutationFn: loginApi,
-    onSuccess: async (data) => {
-      await AsyncStorage.setItem('user', JSON.stringify(data.user));
-      await AsyncStorage.setItem('token', data.token);
-      queryClient.setQueryData(['currentUser'], data.user);
-      router.replace('/(tabs)');
-    }
-  });
-
-  // Logout mutation
-  const logoutMutation = useMutation({
-    mutationFn: logoutApi,
-    onSuccess: async () => {
-      await AsyncStorage.removeItem('user');
-      await AsyncStorage.removeItem('token');
-      queryClient.setQueryData(['currentUser'], null);
-      queryClient.clear();
+  const logout = useCallback(async () => {
+    try {
+      await api.post('/auth/logout');
+    } catch (error) {
+      console.error('Error during logout:', error);
+    } finally {
+      await removeToken();
+      setState({
+        user: null,
+        token: null,
+        isAuthenticated: false,
+        isLoading: false,
+        error: null,
+      });
       router.replace('/login');
     }
-  });
-
-  const login = (credentials: LoginRequest) => {
-    loginMutation.mutate(credentials);
-  };
-
-  const logout = () => {
-    logoutMutation.mutate();
-  };
+  }, []);
 
   return {
-    user: currentUser,
-    isAuthenticated: !!currentUser,
-    isLoading: loginMutation.isPending || logoutMutation.isPending || isLoading,
+    ...state,
     login,
     logout,
-    error: loginMutation.error
   };
 };

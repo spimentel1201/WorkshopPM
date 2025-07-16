@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, ScrollView, Alert } from 'react-native';
 import { Stack, useLocalSearchParams, router } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -36,8 +36,15 @@ const mockOrderInfo = {
 
 export default function BudgetDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { user } = useAuth();
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const queryClient = useQueryClient();
+  
+  // Redirigir si no está autenticado
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      router.replace('/login');
+    }
+  }, [isAuthenticated, authLoading]);
 
   // Fetch budget details
   const { data: budget, isLoading } = useQuery({
@@ -46,11 +53,15 @@ export default function BudgetDetailsScreen() {
       await new Promise(resolve => setTimeout(resolve, 1000));
       return mockBudget;
     },
+    enabled: isAuthenticated, // Solo ejecutar si está autenticado
   });
 
   // Approve budget mutation
   const approveBudgetMutation = useMutation({
     mutationFn: async () => {
+      if (!isAuthenticated) {
+        throw new Error('No autenticado');
+      }
       await new Promise(resolve => setTimeout(resolve, 1000));
       return { ...budget!, approved: true };
     },
@@ -59,11 +70,17 @@ export default function BudgetDetailsScreen() {
       queryClient.invalidateQueries({ queryKey: ['budget', id] });
       Alert.alert('Éxito', 'Presupuesto aprobado exitosamente');
     },
+    onError: (error) => {
+      Alert.alert('Error', error.message || 'Error al aprobar el presupuesto');
+    }
   });
 
   // Reject budget mutation
   const rejectBudgetMutation = useMutation({
     mutationFn: async () => {
+      if (!isAuthenticated) {
+        throw new Error('No autenticado');
+      }
       await new Promise(resolve => setTimeout(resolve, 1000));
       return { ...budget!, approved: false };
     },
@@ -72,6 +89,9 @@ export default function BudgetDetailsScreen() {
       queryClient.invalidateQueries({ queryKey: ['budget', id] });
       Alert.alert('Presupuesto rechazado');
     },
+    onError: (error) => {
+      Alert.alert('Error', error.message || 'Error al rechazar el presupuesto');
+    }
   });
 
   const handleApprove = () => {
@@ -109,6 +129,14 @@ export default function BudgetDetailsScreen() {
         break;
     }
   };
+
+  if (authLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text>Cargando información de autenticación...</Text>
+      </View>
+    );
+  }
 
   if (isLoading) {
     return (
@@ -284,24 +312,19 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     padding: 16,
-    paddingBottom: 32,
+    gap: 16,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    padding: 20,
   },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 16,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold' as const,
-    color: colors.neutral[900],
-    marginBottom: 12,
+    padding: 20,
   },
   statusHeader: {
     flexDirection: 'row',
@@ -309,40 +332,44 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 16,
   },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.neutral[900],
+  },
   approvalActions: {
     flexDirection: 'row',
     gap: 12,
+    marginTop: 16,
   },
   approveButton: {
     flex: 1,
   },
   customerInfo: {
-    marginBottom: 16,
+    gap: 8,
   },
   customerName: {
-    fontSize: 20,
-    fontWeight: 'bold' as const,
+    fontSize: 16,
+    fontWeight: '600',
     color: colors.neutral[900],
-    marginBottom: 8,
   },
   customerDetail: {
-    fontSize: 16,
-    color: colors.neutral[700],
-    marginBottom: 4,
+    fontSize: 14,
+    color: colors.neutral[600],
   },
   contactButtons: {
     flexDirection: 'row',
     gap: 8,
+    marginTop: 16,
   },
   deviceName: {
-    fontSize: 18,
-    fontWeight: 'bold' as const,
+    fontSize: 16,
+    fontWeight: '600',
     color: colors.neutral[900],
-    marginBottom: 8,
   },
   deviceIssue: {
     fontSize: 14,
-    color: colors.neutral[700],
+    color: colors.neutral[600],
   },
   costBreakdown: {
     marginBottom: 16,
@@ -354,12 +381,12 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   costLabel: {
-    fontSize: 16,
-    color: colors.neutral[700],
+    fontSize: 14,
+    color: colors.neutral[600],
   },
   costValue: {
-    fontSize: 16,
-    fontWeight: '500' as const,
+    fontSize: 14,
+    fontWeight: '500',
     color: colors.neutral[900],
   },
   additionalDescription: {
@@ -370,8 +397,8 @@ const styles = StyleSheet.create({
   },
   additionalDescriptionLabel: {
     fontSize: 14,
-    fontWeight: '500' as const,
-    color: colors.neutral[700],
+    fontWeight: '500',
+    color: colors.neutral[600],
     marginBottom: 4,
   },
   additionalDescriptionText: {
@@ -388,13 +415,13 @@ const styles = StyleSheet.create({
     borderTopColor: colors.neutral[200],
   },
   totalLabel: {
-    fontSize: 20,
-    fontWeight: 'bold' as const,
+    fontSize: 16,
+    fontWeight: '600',
     color: colors.neutral[800],
   },
   totalAmount: {
-    fontSize: 24,
-    fontWeight: 'bold' as const,
+    fontSize: 18,
+    fontWeight: '600',
     color: colors.primary[700],
   },
   historyItem: {

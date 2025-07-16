@@ -1,57 +1,26 @@
 import { useState } from 'react';
-import { StyleSheet, Text, View, Image, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
-import { Mail, Lock, Eye, EyeOff } from 'lucide-react-native';
-
-import { Input } from '@/components/ui/Input';
+import { View, StyleSheet, Alert, KeyboardAvoidingView, Platform, ScrollView, Text, TouchableOpacity } from 'react-native';
+import { Link } from 'expo-router';
 import { Button } from '@/components/ui/Button';
-import colors from '@/constants/colors';
+import { Input } from '@/components/ui/Input';
 import { useAuth } from '@/hooks/useAuth';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [emailError, setEmailError] = useState('');
-  const [passwordError, setPasswordError] = useState('');
-  
   const { login, isLoading, error } = useAuth();
 
-  const validateEmail = (email: string) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!email) {
-      setEmailError('El correo electrónico es requerido');
-      return false;
-    } else if (!emailRegex.test(email)) {
-      setEmailError('Ingrese un correo electrónico válido');
-      return false;
+  const handleLogin = async () => {
+    if (!email || !password) {
+      Alert.alert('Error', 'Por favor ingresa tu correo y contraseña');
+      return;
     }
-    setEmailError('');
-    return true;
-  };
 
-  const validatePassword = (password: string) => {
-    if (!password) {
-      setPasswordError('La contraseña es requerida');
-      return false;
-    } else if (password.length < 6) {
-      setPasswordError('La contraseña debe tener al menos 6 caracteres');
-      return false;
+    try {
+      await login({ email, password });
+    } catch (error) {
+      console.error('Login error:', error);
     }
-    setPasswordError('');
-    return true;
-  };
-
-  const handleLogin = () => {
-    const isEmailValid = validateEmail(email);
-    const isPasswordValid = validatePassword(password);
-
-    if (isEmailValid && isPasswordValid) {
-      login({ email, password });
-    }
-  };
-
-  const toggleShowPassword = () => {
-    setShowPassword(!showPassword);
   };
 
   return (
@@ -60,69 +29,49 @@ export default function LoginScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
     >
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
-        <View style={styles.logoContainer}>
-          <Image
-            source={{ uri: 'https://placehold.co/200x200/0072ff/FFFFFF.png?text=REPAIR+SHOP' }}
-            style={styles.logo}
-          />
-          <Text style={styles.title}>Taller de Reparación</Text>
+      <ScrollView 
+        contentContainerStyle={styles.scrollContainer}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.content}>
+          <Text style={styles.title}>Bienvenido</Text>
           <Text style={styles.subtitle}>Inicia sesión para continuar</Text>
-        </View>
-
-        <View style={styles.formContainer}>
+          
+          {error && (
+            <View style={styles.errorContainer}>
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          )}
+          
           <Input
-            label="Correo Electrónico"
-            placeholder="correo@ejemplo.com"
+            label="Correo electrónico"
             value={email}
             onChangeText={setEmail}
+            placeholder="tucorreo@ejemplo.com"
             keyboardType="email-address"
             autoCapitalize="none"
-            leftIcon={<Mail size={20} color={colors.neutral[500]} />}
-            error={emailError}
+            autoCorrect={false}
+            style={styles.input}
           />
+          
           <Input
             label="Contraseña"
-            placeholder="Ingrese su contraseña"
             value={password}
             onChangeText={setPassword}
-            secureTextEntry={!showPassword}
-            leftIcon={<Lock size={20} color={colors.neutral[500]} />}
-            rightIcon={showPassword ? (
-              <EyeOff size={20} color={colors.neutral[500]} />
-            ) : (
-              <Eye size={20} color={colors.neutral[500]} />
-            )}
-            onRightIconPress={toggleShowPassword}
-            error={passwordError}
-          />
-
-          {error && (
-            <Text style={styles.errorText}>
-              {error instanceof Error ? error.message : 'Error al iniciar sesión'}
-            </Text>
-          )}
-
+            placeholder="••••••••"
+            secureTextEntry
+            style={styles.input}
+            onSubmitEditing={handleLogin}
+            returnKeyType="go"
+          />          
           <Button
             onPress={handleLogin}
-            fullWidth
             loading={isLoading}
             disabled={isLoading}
+            style={styles.button}
           >
             Iniciar Sesión
           </Button>
-
-          <View style={styles.helpText}>
-            <Text style={styles.helpTextContent}>
-              Credenciales de prueba:
-            </Text>
-            <Text style={styles.helpTextContent}>
-              Admin: admin@example.com / password
-            </Text>
-            <Text style={styles.helpTextContent}>
-              Técnico: tech@example.com / password
-            </Text>
-          </View>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -132,48 +81,68 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#fff',
   },
   scrollContainer: {
     flexGrow: 1,
     justifyContent: 'center',
+  },
+  content: {
     padding: 24,
-  },
-  logoContainer: {
-    alignItems: 'center',
-    marginBottom: 32,
-  },
-  logo: {
-    width: 100,
-    height: 100,
-    borderRadius: 20,
-    marginBottom: 16,
+    width: '100%',
+    maxWidth: 400,
+    alignSelf: 'center',
   },
   title: {
-    fontSize: 24,
-    fontWeight: 'bold' as const,
-    color: colors.primary[700],
+    fontSize: 28,
+    fontWeight: 'bold',
     marginBottom: 8,
+    textAlign: 'center',
+    color: '#1a1a1a',
   },
   subtitle: {
     fontSize: 16,
-    color: colors.neutral[600],
-  },
-  formContainer: {
-    width: '100%',
-  },
-  errorText: {
-    color: colors.error,
-    marginBottom: 16,
+    color: '#666',
+    marginBottom: 32,
     textAlign: 'center',
   },
-  helpText: {
-    marginTop: 24,
-    alignItems: 'center',
+  input: {
+    marginBottom: 16,
   },
-  helpTextContent: {
+  button: {
+    marginTop: 8,
+    marginBottom: 24,
+  },
+  errorContainer: {
+    backgroundColor: '#ffebee',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: '#f44336',
+  },
+  errorText: {
+    color: '#d32f2f',
     fontSize: 14,
-    color: colors.neutral[600],
-    marginBottom: 4,
+  },
+  forgotPasswordContainer: {
+    alignItems: 'flex-end',
+    marginBottom: 24,
+  },
+  forgotPasswordText: {
+    color: '#1976d2',
+    fontSize: 14,
+  },
+  footer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: 16,
+  },
+  footerText: {
+    color: '#666',
+  },
+  footerLink: {
+    color: '#1976d2',
+    fontWeight: '600',
   },
 });
