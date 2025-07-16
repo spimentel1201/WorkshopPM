@@ -81,7 +81,6 @@ export default function LoginScreen() {
             leftIcon={<Mail size={20} color={colors.neutral[500]} />}
             error={emailError}
           />
-
           <Input
             label="Contraseña"
             placeholder="Ingrese su contraseña"
@@ -89,13 +88,11 @@ export default function LoginScreen() {
             onChangeText={setPassword}
             secureTextEntry={!showPassword}
             leftIcon={<Lock size={20} color={colors.neutral[500]} />}
-            rightIcon={
-              showPassword ? (
-                <EyeOff size={20} color={colors.neutral[500]} />
-              ) : (
-                <Eye size={20} color={colors.neutral[500]} />
-              )
-            }
+            rightIcon={showPassword ? (
+              <EyeOff size={20} color={colors.neutral[500]} />
+            ) : (
+              <Eye size={20} color={colors.neutral[500]} />
+            )}
             onRightIconPress={toggleShowPassword}
             error={passwordError}
           />

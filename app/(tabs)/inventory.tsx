@@ -16,8 +16,12 @@ import colors from '@/constants/colors';
 
 const { width } = Dimensions.get('window');
 const isTablet = width > 768;
+const isLargeScreen = width > 1024;
+const numColumns = isLargeScreen ? 3 : (isTablet ? 2 : 1);
+const ITEM_MARGIN = 8;
+const CONTAINER_PADDING = 16;
+const ITEM_WIDTH = (width - (CONTAINER_PADDING * 2) - (ITEM_MARGIN * (numColumns - 1))) / numColumns;
 
-// Mock products data
 const mockProducts: Product[] = [
   {
     id: '1',
@@ -158,44 +162,42 @@ export default function InventoryScreen() {
     const stockStatus = getStockStatus(item.stock);
     
     return (
-      <Pressable onPress={() => handleProductPress(item.id)}>
-        <Card style={[styles.productCard, isTablet && styles.productCardTablet]}>
-          <View style={styles.productHeader}>
-            <View style={styles.productInfo}>
-              <Text style={styles.productName} numberOfLines={2}>{item.name}</Text>
-              <Text style={styles.productSku}>SKU: {item.sku}</Text>
-              <Text style={styles.productCategory}>{item.category}</Text>
-            </View>
-            <Badge variant={stockStatus.variant} text={stockStatus.text} />
+      <Pressable onPress={() => handleProductPress(item.id)} style={styles.productCard}>
+        <View style={styles.productHeader}>
+          <View style={styles.productInfo}>
+            <Text style={styles.productName} numberOfLines={2}>{item.name}</Text>
+            <Text style={styles.productSku}>SKU: {item.sku}</Text>
+            <Text style={styles.productCategory}>{item.category}</Text>
+          </View>
+          <Badge variant={stockStatus.variant} text={stockStatus.text} />
+        </View>
+        
+        <View style={styles.productDetails}>
+          <Text style={styles.productBrand}>
+            {item.brand} {item.model && `- ${item.model}`}
+          </Text>
+          <Text style={styles.productDescription} numberOfLines={2}>
+            {item.description}
+          </Text>
+        </View>
+        
+        <View style={styles.productFooter}>
+          <View style={styles.priceSection}>
+            <Text style={styles.productPrice}>${item.price.toFixed(2)}</Text>
+            <Text style={styles.stockText}>Stock: {item.stock}</Text>
           </View>
           
-          <View style={styles.productDetails}>
-            <Text style={styles.productBrand}>
-              {item.brand} {item.model && `- ${item.model}`}
-            </Text>
-            <Text style={styles.productDescription} numberOfLines={2}>
-              {item.description}
-            </Text>
-          </View>
-          
-          <View style={styles.productFooter}>
-            <View style={styles.priceSection}>
-              <Text style={styles.productPrice}>${item.price.toFixed(2)}</Text>
-              <Text style={styles.stockText}>Stock: {item.stock}</Text>
+          {user?.role === UserRole.ADMIN && (
+            <View style={styles.productActions}>
+              <Pressable
+                onPress={() => handleEditProduct(item.id)}
+                style={styles.actionButton}
+              >
+                <Edit size={16} color={colors.primary[500]} />
+              </Pressable>
             </View>
-            
-            {user?.role === UserRole.ADMIN && (
-              <View style={styles.productActions}>
-                <Pressable
-                  onPress={() => handleEditProduct(item.id)}
-                  style={styles.actionButton}
-                >
-                  <Edit size={16} color={colors.primary[500]} />
-                </Pressable>
-              </View>
-            )}
-          </View>
-        </Card>
+          )}
+        </View>
       </Pressable>
     );
   };
@@ -240,15 +242,10 @@ export default function InventoryScreen() {
   const renderEmptyState = () => (
     <EmptyState
       icon={<Package size={48} color={colors.neutral[400]} />}
-      title="No hay productos"
-      description="Agrega productos al inventario para comenzar a gestionar el stock."
-      actionLabel={user?.role === UserRole.ADMIN ? "Agregar Producto" : undefined}
-      onAction={user?.role === UserRole.ADMIN ? handleCreateProduct : undefined}
+      title="No se encontraron productos"
+      description="Intenta con otros términos de búsqueda o crea un nuevo producto"
     />
   );
-
-  // Calculate grid columns based on screen size
-  const numColumns = isTablet ? 3 : 1;
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
@@ -279,13 +276,15 @@ export default function InventoryScreen() {
 
       <FlatList
         data={filteredProducts}
-        renderItem={renderProductItem}
         keyExtractor={item => item.id}
-        numColumns={numColumns}
-        key={numColumns} // Force re-render when columns change
+        renderItem={renderProductItem}
         contentContainerStyle={styles.listContainer}
+        numColumns={numColumns}
+        {...(numColumns > 1 && { columnWrapperStyle: styles.row })}
         ListEmptyComponent={renderEmptyState}
-        columnWrapperStyle={numColumns > 1 ? styles.row : undefined}
+        refreshing={isLoading}
+        key={numColumns}
+        showsVerticalScrollIndicator={false}
       />
     </View>
   );
@@ -294,7 +293,8 @@ export default function InventoryScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 16,
+    padding: CONTAINER_PADDING,
+    backgroundColor: colors.background,
   },
   header: {
     flexDirection: 'row',
@@ -344,17 +344,24 @@ const styles = StyleSheet.create({
     fontWeight: '500' as const,
   },
   listContainer: {
+    paddingBottom: 16,
     flexGrow: 1,
   },
   row: {
     justifyContent: 'space-between',
+    marginHorizontal: -ITEM_MARGIN / 2,
   },
   productCard: {
-    marginBottom: 12,
-  },
-  productCardTablet: {
-    flex: 1,
-    marginHorizontal: 4,
+    width: numColumns === 1 ? '100%' : ITEM_WIDTH - ITEM_MARGIN,
+    margin: ITEM_MARGIN / 2,
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: colors.white,
+    shadowColor: colors.black,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
   productHeader: {
     flexDirection: 'row',

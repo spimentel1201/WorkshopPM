@@ -126,8 +126,9 @@ export default function SettingsScreen() {
           onPress={handleLogout}
           variant="outline"
           leftIcon={<LogOut size={18} color={theme.error} />}
+          style={{ color: theme.error }}
         >
-          <Text style={{ color: theme.error }}>Cerrar Sesión</Text>
+          Cerrar Sesión
         </Button>
       </View>
 
