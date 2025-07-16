@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, View, ActivityIndicator } from 'react-native';
 import { ReactNode } from 'react';
-import colors from '@/constants/colors';
+import { ColorScheme } from '@/constants/colors';
 
 type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
 type ButtonSize = 'sm' | 'md' | 'lg';
@@ -16,6 +16,7 @@ interface ButtonProps {
   leftIcon?: ReactNode;
   rightIcon?: ReactNode;
   style?: any;
+  theme: ColorScheme;
 }
 
 export const Button = ({
@@ -29,119 +30,83 @@ export const Button = ({
   leftIcon,
   rightIcon,
   style,
+  theme,
 }: ButtonProps) => {
   const getBackgroundColor = () => {
-    if (disabled) return colors.neutral['300'];
+    if (disabled) return theme.neutral[300];
     
     switch (variant) {
       case 'primary':
-        return colors.primary['500'];
+        return theme.primary[500];
       case 'secondary':
-        return colors.secondary['500'];
+        return theme.secondary[500];
       case 'outline':
       case 'ghost':
         return 'transparent';
       case 'danger':
-        return colors.error;
+        return theme.error;
       default:
-        return colors.primary['500'];
+        return theme.primary[500];
     }
   };
 
   const getTextColor = () => {
-    if (disabled) return colors.neutral['500'];
-    
-    switch (variant) {
-      case 'primary':
-      case 'secondary':
-      case 'danger':
-        return colors.white;
-      case 'outline':
-        return colors.primary['500'];
-      case 'ghost':
-        return colors.neutral['800'];
-      default:
-        return colors.white;
+    if (variant === 'outline' || variant === 'ghost') {
+      return theme.primary[500];
     }
+    return theme.white;
   };
 
   const getBorderColor = () => {
-    if (disabled) return colors.neutral['300'];
-    
-    switch (variant) {
-      case 'outline':
-        return colors.primary['500'];
-      default:
-        return 'transparent';
+    if (variant === 'outline') {
+      return theme.primary[500];
     }
+    return 'transparent';
   };
 
   const getPadding = () => {
     switch (size) {
       case 'sm':
-        return { paddingVertical: 6, paddingHorizontal: 12 };
-      case 'md':
-        return { paddingVertical: 10, paddingHorizontal: 16 };
+        return { paddingVertical: 8, paddingHorizontal: 16 };
       case 'lg':
-        return { paddingVertical: 14, paddingHorizontal: 20 };
+        return { paddingVertical: 16, paddingHorizontal: 24 };
       default:
-        return { paddingVertical: 10, paddingHorizontal: 16 };
-    }
-  };
-
-  const getFontSize = () => {
-    switch (size) {
-      case 'sm':
-        return 14;
-      case 'md':
-        return 16;
-      case 'lg':
-        return 18;
-      default:
-        return 16;
+        return { paddingVertical: 12, paddingHorizontal: 20 };
     }
   };
 
   return (
     <Pressable
-      onPress={onPress}
+      onPress={disabled || loading ? undefined : onPress}
       disabled={disabled || loading}
-      style={({ pressed }) => [
+      style={[
         styles.button,
         {
           backgroundColor: getBackgroundColor(),
           borderColor: getBorderColor(),
-          borderWidth: variant === 'outline' ? 1 : 0,
-          opacity: pressed ? 0.8 : 1,
-          width: fullWidth ? '100%' : 'auto',
           ...getPadding(),
+          width: fullWidth ? '100%' : undefined,
         },
         style,
       ]}
     >
-      <View style={styles.contentContainer}>
+      <View style={styles.content}>
+        {leftIcon && (
+          <View style={styles.iconContainer}>
+            {leftIcon}
+          </View>
+        )}
         {loading ? (
-          <ActivityIndicator size="small" color={getTextColor()} />
+          <ActivityIndicator color={getTextColor()} />
         ) : (
-          <>
-            {leftIcon && <View style={styles.iconLeft}>{leftIcon}</View>}
-            {typeof children === 'string' ? (
-              <Text
-                style={[
-                  styles.text,
-                  {
-                    color: getTextColor(),
-                    fontSize: getFontSize(),
-                  },
-                ]}
-              >
-                {children}
-              </Text>
-            ) : (
-              children
-            )}
-            {rightIcon && <View style={styles.iconRight}>{rightIcon}</View>}
-          </>
+          <Text style={[styles.text, { color: getTextColor() }]}>
+            {children}
+          </Text>
+        )}
+        {rightIcon && (
+          <View style={styles.iconContainer}>
+            {rightIcon}
+          </View>
         )}
       </View>
     </Pressable>
@@ -151,22 +116,23 @@ export const Button = ({
 const styles = StyleSheet.create({
   button: {
     borderRadius: 8,
+    borderWidth: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    opacity: 0.8,
+  },
+  content: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 8,
   },
-  contentContainer: {
-    flexDirection: 'row',
+  iconContainer: {
     alignItems: 'center',
     justifyContent: 'center',
   },
   text: {
-    fontWeight: '600' as const,
-    textAlign: 'center',
-  },
-  iconLeft: {
-    marginRight: 8,
-  },
-  iconRight: {
-    marginLeft: 8,
+    fontSize: 16,
+    fontWeight: '500' as const,
   },
 });

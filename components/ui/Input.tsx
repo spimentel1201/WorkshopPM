@@ -1,6 +1,6 @@
 import { StyleSheet, Text, TextInput, View, TextInputProps, Pressable } from 'react-native';
 import { ReactNode } from 'react';
-import colors from '@/constants/colors';
+import { ColorScheme } from '@/constants/colors';
 
 interface InputProps extends TextInputProps {
   label?: string;
@@ -8,6 +8,7 @@ interface InputProps extends TextInputProps {
   leftIcon?: ReactNode;
   rightIcon?: ReactNode;
   onRightIconPress?: () => void;
+  theme: ColorScheme;
 }
 
 export const Input = ({
@@ -23,28 +24,42 @@ export const Input = ({
   keyboardType,
   autoCapitalize,
   autoCorrect,
+  theme,
   ...rest
 }: InputProps) => {
+  const hasError = !!error;
+
   return (
-    <View style={styles.container}>
-      {label && <Text style={styles.label}>{label}</Text>}
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      {label && <Text style={[styles.label, { color: theme.text.primary }]}>{label}</Text>}
       <View
         style={[
           styles.inputContainer,
-          error ? styles.inputError : null,
+          {
+            backgroundColor: theme.surface,
+            borderColor: hasError ? theme.error : theme.border,
+          },
         ]}
       >
-        {leftIcon && <View style={styles.leftIcon}>{leftIcon}</View>}
+        {leftIcon && (
+          <View style={[styles.leftIcon, { backgroundColor: theme.surface }]}>
+            {leftIcon}
+          </View>
+        )}
         <TextInput
           style={[
             styles.input,
             leftIcon ? styles.inputWithLeftIcon : null,
             rightIcon ? styles.inputWithRightIcon : null,
+            {
+              color: theme.text.primary,
+              backgroundColor: theme.surface,
+            },
           ]}
           value={value}
           onChangeText={onChangeText}
           placeholder={placeholder}
-          placeholderTextColor={colors.neutral[400]}
+          placeholderTextColor={theme.text.tertiary}
           secureTextEntry={secureTextEntry}
           keyboardType={keyboardType}
           autoCapitalize={autoCapitalize}
@@ -52,12 +67,19 @@ export const Input = ({
           {...rest}
         />
         {rightIcon && (
-          <Pressable onPress={onRightIconPress} style={styles.rightIcon}>
+          <Pressable
+            style={[styles.rightIcon, { backgroundColor: theme.surface }]}
+            onPress={onRightIconPress}
+          >
             {rightIcon}
           </Pressable>
         )}
       </View>
-      {error && <Text style={styles.errorText}>{error}</Text>}
+      {error && (
+        <Text style={[styles.error, { color: theme.error }]}>
+          {error}
+        </Text>
+      )}
     </View>
   );
 };
@@ -65,47 +87,40 @@ export const Input = ({
 const styles = StyleSheet.create({
   container: {
     marginBottom: 16,
-    width: '100%',
   },
   label: {
     fontSize: 14,
-    fontWeight: '500' as const,
-    marginBottom: 6,
-    color: colors.neutral[700],
+    marginBottom: 4,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.neutral[300],
     borderRadius: 8,
-    backgroundColor: colors.white,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
   },
   input: {
     flex: 1,
-    height: 48,
-    paddingHorizontal: 16,
     fontSize: 16,
-    color: colors.neutral[900],
   },
   inputWithLeftIcon: {
-    paddingLeft: 8,
+    marginLeft: 8,
   },
   inputWithRightIcon: {
-    paddingRight: 8,
+    marginRight: 8,
   },
   leftIcon: {
-    paddingLeft: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
   },
   rightIcon: {
-    paddingRight: 16,
-    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 8,
   },
-  inputError: {
-    borderColor: colors.error,
-  },
-  errorText: {
-    color: colors.error,
+  error: {
     fontSize: 12,
     marginTop: 4,
   },

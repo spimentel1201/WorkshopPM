@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View, Pressable, Modal, FlatList } from 'react-native';
 import { useState } from 'react';
 import { ChevronDown, Check } from 'lucide-react-native';
-import colors from '@/constants/colors';
+import { ColorScheme } from '@/constants/colors';
 
 interface SelectOption {
   value: string;
@@ -15,6 +15,7 @@ interface SelectProps {
   onValueChange: (value: string) => void;
   options: SelectOption[];
   error?: string;
+  theme: ColorScheme;
 }
 
 export const Select = ({
@@ -24,6 +25,7 @@ export const Select = ({
   onValueChange,
   options,
   error,
+  theme,
 }: SelectProps) => {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -36,59 +38,72 @@ export const Select = ({
 
   return (
     <View style={styles.container}>
-      {label && <Text style={styles.label}>{label}</Text>}
+      {label && <Text style={[styles.label, { color: theme.text.primary }]}>{label}</Text>}
       
       <Pressable
         onPress={() => setIsOpen(true)}
         style={[
           styles.selectButton,
-          error ? styles.selectError : null,
+          {
+            backgroundColor: theme.surface,
+            borderColor: error ? theme.error : theme.border,
+          },
         ]}
       >
         <Text style={[
           styles.selectText,
-          !selectedOption && styles.placeholderText
+          !selectedOption && styles.placeholderText,
+          {
+            color: selectedOption ? theme.text.primary : theme.text.tertiary,
+          },
         ]}>
-          {selectedOption ? selectedOption.label : placeholder}
+          {selectedOption?.label || placeholder}
         </Text>
-        <ChevronDown size={20} color={colors.neutral[500]} />
+        <ChevronDown
+          size={20}
+          color={error ? theme.error : theme.text.secondary}
+          style={styles.icon}
+        />
       </Pressable>
 
-      {error && <Text style={styles.errorText}>{error}</Text>}
+      {error && (
+        <Text style={[styles.error, { color: theme.error }]}>
+          {error}
+        </Text>
+      )}
 
       <Modal
-        visible={isOpen}
+        animationType="slide"
         transparent
-        animationType="fade"
+        visible={isOpen}
         onRequestClose={() => setIsOpen(false)}
       >
-        <Pressable 
+        <Pressable
           style={styles.modalOverlay}
           onPress={() => setIsOpen(false)}
         >
-          <View style={styles.modalContent}>
+          <View style={[styles.modalContainer, { backgroundColor: theme.background }]}>
             <FlatList
               data={options}
-              keyExtractor={item => item.value}
               renderItem={({ item }) => (
                 <Pressable
-                  style={[
-                    styles.optionItem,
-                    item.value === value && styles.selectedOption
-                  ]}
                   onPress={() => handleSelect(item.value)}
+                  style={[styles.option, { backgroundColor: theme.surface }]}
                 >
-                  <Text style={[
-                    styles.optionText,
-                    item.value === value && styles.selectedOptionText
-                  ]}>
+                  <Text style={[styles.optionText, { color: theme.text.primary }]}>
                     {item.label}
                   </Text>
                   {item.value === value && (
-                    <Check size={16} color={colors.primary[500]} />
+                    <Check
+                      size={20}
+                      color={theme.primary[500]}
+                      style={styles.checkIcon}
+                    />
                   )}
                 </Pressable>
               )}
+              keyExtractor={item => item.value}
+              keyboardShouldPersistTaps="handled"
             />
           </View>
         </Pressable>
@@ -100,71 +115,56 @@ export const Select = ({
 const styles = StyleSheet.create({
   container: {
     marginBottom: 16,
-    width: '100%',
   },
   label: {
     fontSize: 14,
-    fontWeight: '500' as const,
-    marginBottom: 6,
-    color: colors.neutral[700],
+    marginBottom: 4,
   },
   selectButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    height: 48,
-    paddingHorizontal: 16,
-    borderWidth: 1,
-    borderColor: colors.neutral[300],
     borderRadius: 8,
-    backgroundColor: colors.white,
+    borderWidth: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
   selectText: {
+    flex: 1,
     fontSize: 16,
-    color: colors.neutral[900],
   },
   placeholderText: {
-    color: colors.neutral[400],
+    fontStyle: 'italic',
   },
-  selectError: {
-    borderColor: colors.error,
+  icon: {
+    marginLeft: 8,
   },
-  errorText: {
-    color: colors.error,
+  error: {
     fontSize: 12,
     marginTop: 4,
   },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
   },
-  modalContent: {
-    backgroundColor: colors.white,
-    borderRadius: 12,
-    maxHeight: 300,
-    width: '80%',
-    maxWidth: 400,
+  modalContainer: {
+    backgroundColor: 'transparent',
+    flex: 1,
+    justifyContent: 'flex-end',
   },
-  optionItem: {
+  option: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 16,
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: colors.neutral[100],
-  },
-  selectedOption: {
-    backgroundColor: colors.primary[50],
   },
   optionText: {
     fontSize: 16,
-    color: colors.neutral[900],
+    flex: 1,
   },
-  selectedOptionText: {
-    color: colors.primary[700],
-    fontWeight: '500' as const,
+  checkIcon: {
+    marginLeft: 8,
   },
 });

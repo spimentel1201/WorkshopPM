@@ -7,7 +7,7 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
-import colors from '@/constants/colors';
+import { useTheme } from '@/hooks/useTheme';
 
 interface NewProduct {
   name: string;
@@ -32,6 +32,7 @@ const categoryOptions = [
 ];
 
 export default function CreateProductScreen() {
+  const { theme } = useTheme();
   const [product, setProduct] = useState<NewProduct>({
     name: '',
     description: '',
@@ -126,25 +127,32 @@ export default function CreateProductScreen() {
       <Stack.Screen 
         options={{ 
           title: 'Nuevo Producto',
-          headerStyle: { backgroundColor: colors.white },
-          headerTitleStyle: { color: colors.neutral[900] }
+          headerStyle: { backgroundColor: theme.background },
+          headerTitleStyle: { color: theme.text.primary }
         }} 
       />
-      <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+      <ScrollView 
+        style={[styles.container, { backgroundColor: theme.background }]}
+        contentContainerStyle={styles.contentContainer}
+      >
         <Card>
           <View style={styles.header}>
-            <View style={styles.iconContainer}>
-              <Package size={32} color={colors.primary[500]} />
+            <View style={[styles.iconContainer, { backgroundColor: theme.primary[100] }]}>
+              <Package size={32} color={theme.primary[500]} />
             </View>
-            <Text style={styles.title}>Agregar Nuevo Producto</Text>
-            <Text style={styles.subtitle}>
+            <Text style={[styles.title, { color: theme.text.primary }]}>
+              Agregar Nuevo Producto
+            </Text>
+            <Text style={[styles.subtitle, { color: theme.text.secondary }]}>
               Complete la información del producto para agregarlo al inventario
             </Text>
           </View>
         </Card>
 
         <Card>
-          <Text style={styles.sectionTitle}>Información Básica</Text>
+          <Text style={[styles.sectionTitle, { color: theme.text.primary }]}>
+            Información Básica
+          </Text>
           
           <Input
             label="Nombre del Producto"
@@ -152,6 +160,7 @@ export default function CreateProductScreen() {
             value={product.name}
             onChangeText={(value) => setProduct(prev => ({ ...prev, name: value }))}
             error={errors.name}
+            theme={theme}
           />
           
           <Input
@@ -162,6 +171,7 @@ export default function CreateProductScreen() {
             multiline
             numberOfLines={3}
             error={errors.description}
+            theme={theme}
           />
 
           <Select
@@ -171,11 +181,14 @@ export default function CreateProductScreen() {
             onValueChange={(value) => setProduct(prev => ({ ...prev, category: value }))}
             options={categoryOptions}
             error={errors.category}
+            theme={theme}
           />
         </Card>
 
         <Card>
-          <Text style={styles.sectionTitle}>Identificación</Text>
+          <Text style={[styles.sectionTitle, { color: theme.text.primary }]}>
+            Identificación
+          </Text>
           
           <View style={styles.skuContainer}>
             <Input
@@ -185,12 +198,14 @@ export default function CreateProductScreen() {
               onChangeText={(value) => setProduct(prev => ({ ...prev, sku: value }))}
               error={errors.sku}
               style={styles.skuInput}
+              theme={theme}
             />
             <Button
               onPress={handleGenerateSKU}
               variant="outline"
               size="sm"
               style={styles.generateButton}
+              theme={theme}
             >
               Generar
             </Button>
@@ -202,6 +217,7 @@ export default function CreateProductScreen() {
             value={product.brand}
             onChangeText={(value) => setProduct(prev => ({ ...prev, brand: value }))}
             error={errors.brand}
+            theme={theme}
           />
           
           <Input
@@ -209,11 +225,14 @@ export default function CreateProductScreen() {
             placeholder="Ej: Galaxy S21, Pavilion"
             value={product.model}
             onChangeText={(value) => setProduct(prev => ({ ...prev, model: value }))}
+            theme={theme}
           />
         </Card>
 
         <Card>
-          <Text style={styles.sectionTitle}>Precio e Inventario</Text>
+          <Text style={[styles.sectionTitle, { color: theme.text.primary }]}>
+            Precio e Inventario
+          </Text>
           
           <Input
             label="Precio de Venta"
@@ -222,6 +241,7 @@ export default function CreateProductScreen() {
             onChangeText={(value) => setProduct(prev => ({ ...prev, price: value }))}
             keyboardType="numeric"
             error={errors.price}
+            theme={theme}
           />
           
           <Input
@@ -231,6 +251,7 @@ export default function CreateProductScreen() {
             onChangeText={(value) => setProduct(prev => ({ ...prev, stock: value }))}
             keyboardType="numeric"
             error={errors.stock}
+            theme={theme}
           />
         </Card>
 
@@ -240,7 +261,8 @@ export default function CreateProductScreen() {
             loading={isSubmitting}
             disabled={isSubmitting}
             fullWidth
-            leftIcon={<Save size={18} color={colors.white} />}
+            leftIcon={<Save size={18} color={theme.white} />}
+            theme={theme}
           >
             Crear Producto
           </Button>
@@ -253,7 +275,6 @@ export default function CreateProductScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
   },
   contentContainer: {
     padding: 16,
@@ -267,7 +288,6 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: colors.primary[100],
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
@@ -275,19 +295,16 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     fontWeight: 'bold' as const,
-    color: colors.neutral[900],
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 14,
-    color: colors.neutral[600],
     textAlign: 'center',
     lineHeight: 20,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold' as const,
-    color: colors.neutral[900],
     marginBottom: 16,
   },
   skuContainer: {
