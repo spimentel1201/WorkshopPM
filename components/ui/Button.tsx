@@ -104,20 +104,31 @@ export const Button = ({
 
   return (
     <Pressable
-      onPress={onPress}
+      onPress={(e) => {
+        console.log('Botón presionado');
+        if (!disabled && !loading && onPress) {
+          console.log('Ejecutando onPress');
+          onPress();
+        } else {
+          console.log('Botón deshabilitado o cargando:', { disabled, loading });
+        }
+      }}
       disabled={disabled || loading}
-      style={({ pressed }) => [
-        styles.button,
-        {
-          backgroundColor: getBackgroundColor(),
-          borderColor: getBorderColor(),
-          borderWidth: variant === 'outline' ? 1 : 0,
-          opacity: pressed ? 0.8 : 1,
-          width: fullWidth ? '100%' : 'auto',
-          ...getPadding(),
-        },
-        style,
-      ]}
+      style={({ pressed }) => {
+        console.log('Estado de presión del botón:', { pressed });
+        return [
+          styles.button,
+          {
+            backgroundColor: getBackgroundColor(),
+            borderColor: getBorderColor(),
+            borderWidth: variant === 'outline' ? 1 : 0,
+            opacity: (pressed && !disabled && !loading) ? 0.8 : 1,
+            width: fullWidth ? '100%' : 'auto',
+            ...getPadding(),
+          },
+          style,
+        ];
+      }}
     >
       <View style={styles.contentContainer}>
         {loading ? (

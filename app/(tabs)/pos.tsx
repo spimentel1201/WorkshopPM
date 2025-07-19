@@ -76,6 +76,7 @@ interface CartButtonProps {
   onPress: () => void;
 }
 
+// Reemplazar el componente CartButton actual con esta versión corregida
 const CartButton = ({ itemCount, onPress }: CartButtonProps) => {
   useTheme();
   const animatedScale = useRef(new Animated.Value(1)).current;
@@ -115,29 +116,25 @@ const CartButton = ({ itemCount, onPress }: CartButtonProps) => {
           }
         ]}
       >
-        <ShoppingCart 
-          size={22} 
-          color={colors.white} 
-          accessibilityElementsHidden
-        />
-        {itemCount > 0 && (
-          <View 
-          style={styles.badge}
-          {...Platform.select({
-            native: { accessibilityElementsHidden: true },
-            default: { 'aria-hidden': true }
-          })}
-        >
-          <Text 
-            style={styles.badgeText}
-            numberOfLines={1}
-            minimumFontScale={0.8}
-            adjustsFontSizeToFit
-          >
-            {itemCount > 9 ? '9+' : itemCount}
-          </Text>
+        <View style={{ position: 'relative' }}>
+          <ShoppingCart 
+            size={22} 
+            color={colors.white}
+            // Eliminamos cualquier prop de accesibilidad que pueda causar problemas
+          />
+          {itemCount > 0 && (
+            <View style={styles.badge}>
+              <Text 
+                style={styles.badgeText}
+                numberOfLines={1}
+                minimumFontScale={0.8}
+                adjustsFontSizeToFit
+              >
+                {itemCount > 9 ? '9+' : itemCount}
+              </Text>
+            </View>
+          )}
         </View>
-        )}
       </Animated.View>
     </Pressable>
   );

@@ -1,8 +1,9 @@
 import { StyleSheet, View, ViewProps } from 'react-native';
 import { useTheme } from '@/hooks/useTheme';
 
-interface CardProps extends ViewProps {
+interface CardProps extends Omit<ViewProps, 'style'> {
   variant?: 'elevated' | 'outlined' | 'filled';
+  style?: any;
 }
 
 export const Card = ({ 
@@ -12,6 +13,23 @@ export const Card = ({
   ...rest 
 }: CardProps) => {
   const { theme } = useTheme();
+  
+  // Filtrar propiedades de accesibilidad específicas de la web
+  const filteredProps = Object.fromEntries(
+    Object.entries(rest).filter(
+      ([key]) => ![
+        'accessibilityElementsHidden',
+        'importantForAccessibility',
+        'accessibilityViewIsModal',
+        'accessibilityLiveRegion',
+        'accessibilityLabelledBy',
+        'accessibilityLevel',
+        'accessibilityRole',
+        'accessibilityState',
+        'accessibilityValue'
+      ].includes(key)
+    )
+  );
   
   const cardStyles = {
     elevated: {
@@ -39,7 +57,7 @@ export const Card = ({
         cardStyles[variant],
         style
       ]} 
-      {...rest}
+      {...filteredProps}
     >
       {children}
     </View>
@@ -49,7 +67,6 @@ export const Card = ({
 const styles = StyleSheet.create({
   card: {
     borderRadius: 12,
-    padding: 16,
-    marginVertical: 8,
+    overflow: 'hidden',
   },
 });

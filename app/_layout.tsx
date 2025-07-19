@@ -1,77 +1,92 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Stack, useRouter, useSegments } from "expo-router";
+import { Stack, useRouter, useSegments, usePathname } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect, useState } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { StatusBar } from "expo-status-bar";
 import { ThemeProvider, useTheme } from "@/hooks/useTheme";
 import { useAuth } from "@/hooks/useAuth";
+import { View, ActivityIndicator } from "react-native";
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
 
 const queryClient = new QueryClient();
 
+function LoadingScreen() {
+  return (
+    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+      <ActivityIndicator size="large" />
+    </View>
+  );
+}
+
 function RootLayoutNav() {
   const { isDark } = useTheme();
   const { isAuthenticated, isLoading } = useAuth();
-  const segments = useSegments();
   const router = useRouter();
+  const pathname = usePathname();
+  const [isReady, setIsReady] = useState(false);
+  const [initialPath, setInitialPath] = useState(pathname);
 
   useEffect(() => {
-    if (isLoading) return;
-
-    const inAuthGroup = segments[0] === 'login';
-    const inAppGroup = segments[0] === '(tabs)' || segments[0] === '';
-
-    console.log('Auth state:', { isAuthenticated, segments, inAuthGroup, inAppGroup });
-
-    if (isAuthenticated === false && !inAuthGroup) {
-      // Si no está autenticado y no está en la pantalla de login, redirigir a login
-      console.log('Redirigiendo a login');
-      router.replace('/login');
-    } else if (isAuthenticated === true && inAuthGroup) {
-      // Si está autenticado y está en la pantalla de login, redirigir a tabs
-      console.log('Redirigiendo a home');
-      router.replace('/(tabs)');
+    // Solo procesar redirecciones una vez que el estado de autenticación esté listo
+    if (isLoading) {
+      console.log('Cargando estado de autenticación...');
+      return;
     }
-  }, [isAuthenticated, isLoading, segments]);
+
+    // Si ya estamos listos, manejar la navegación
+    if (isReady) {
+      // Si estamos en la ruta raíz, redirigir según autenticación
+      if (pathname === '/') {
+        console.log('Redirigiendo desde ruta raíz...');
+        router.replace(isAuthenticated ? '/(tabs)' : '/login');
+        return;
+      }
+
+      // Si el usuario no está autenticado y no está en la pantalla de login, redirigir a login
+      if (!isAuthenticated && pathname !== '/login') {
+        console.log('Redirigiendo a login...');
+        router.replace('/login');
+        return;
+      }
+
+      // Si el usuario está autenticado y está en la pantalla de login, redirigir a tabs
+      if (isAuthenticated && pathname === '/login') {
+        console.log('Redirigiendo a la aplicación...');
+        router.replace('/(tabs)');
+        return;
+      }
+    } else {
+      // Marcar como listo después del primer render
+      setIsReady(true);
+    }
+  }, [isAuthenticated, isLoading, pathname, router, isReady]);
   
+  // Mostrar pantalla de carga mientras se verifica la autenticación
+  if (isLoading || !isReady) {
+    return <LoadingScreen />;
+  }
+
   return (
     <>
       <StatusBar style={isDark ? "light" : "dark"} />
-      <Stack screenOptions={{ headerBackTitle: "Atrás" }}>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="login" options={{ headerShown: false }} />
+      <Stack 
+        screenOptions={{ 
+          headerShown: false,
+          animation: 'fade'
+        }}
+        initialRouteName={initialPath === '/login' ? 'login' : isAuthenticated ? '(tabs)' : 'login'}
+      >
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="login" />
       </Stack>
     </>
   );
 }
 
 export default function RootLayout() {
-  const [isReady, setIsReady] = useState(false);
-  const { isLoading } = useAuth();
-
-  useEffect(() => {
-    const prepare = async () => {
-      try {
-        // Add any initialization logic here
-        await new Promise(resolve => setTimeout(resolve, 100));
-      } catch (e) {
-        console.warn(e);
-      } finally {
-        setIsReady(true);
-        SplashScreen.hideAsync();
-      }
-    };
-
-    prepare();
-  }, []);
-
-  if (!isReady || isLoading) {
-    return null;
-  }
-
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>

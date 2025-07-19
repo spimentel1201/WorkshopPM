@@ -219,6 +219,7 @@ const styles = StyleSheet.create({
   },
   budgetCard: {
     marginBottom: 12,
+    padding: 16,
   },
   budgetHeader: {
     flexDirection: 'row',
@@ -228,43 +229,52 @@ const styles = StyleSheet.create({
   },
   budgetInfo: {
     flex: 1,
+    marginRight: 8,
   },
   customerName: {
     fontSize: 16,
     fontWeight: 'bold' as const,
     color: colors.neutral[900],
     marginBottom: 4,
+    flexShrink: 1,
   },
   deviceInfo: {
     fontSize: 14,
     color: colors.neutral[600],
+    flexShrink: 1,
   },
   costBreakdown: {
     marginBottom: 12,
+    width: '100%',
   },
   costItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: 6,
+    flexWrap: 'wrap',
   },
   costLabel: {
     fontSize: 14,
     color: colors.neutral[700],
+    marginRight: 8,
+    flexShrink: 0,
   },
   costValue: {
     fontSize: 14,
     fontWeight: '500' as const,
     color: colors.neutral[900],
+    flexShrink: 0,
   },
   budgetFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 8,
-    paddingTop: 8,
+    marginTop: 12,
+    paddingTop: 12,
     borderTopWidth: 1,
     borderTopColor: colors.neutral[200],
+    flexWrap: 'wrap',
   },
   totalSection: {
     flexDirection: 'row',

@@ -1,17 +1,30 @@
 import { Tabs } from "expo-router";
 import { useEffect, useState } from "react";
-import { router } from "expo-router";
+import { useRouter } from "expo-router";
 import { Home, ClipboardList, ShoppingCart, Settings, Users, Package, FileText } from "lucide-react-native";
-
 import { useTheme } from "@/hooks/useTheme";
 import { useAuth } from "@/hooks/useAuth";
 import { UserRole } from "@/types/auth";
+import { View, ActivityIndicator } from "react-native";
+
+function LoadingScreen() {
+  return (
+    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+      <ActivityIndicator size="large" />
+    </View>
+  );
+}
 
 export default function TabLayout() {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, isLoading: isAuthLoading } = useAuth();
+  console.log('User:', user);
+  console.log('IsAuthenticated:', isAuthenticated);
+  console.log('IsAuthLoading:', isAuthLoading); 
   const { theme } = useTheme();
   const [isRouterReady, setIsRouterReady] = useState(false);
+  const router = useRouter();
 
+  // Verificar si el router está listo
   useEffect(() => {
     const checkRouter = () => {
       try {
@@ -27,26 +40,23 @@ export default function TabLayout() {
     checkRouter();
   }, []);
 
-  useEffect(() => {
-    if (isRouterReady && !isAuthenticated) {
-      try {
-        router.replace('/login');
-      } catch (error) {
-        console.warn('Navigation error:', error);
-      }
-    }
-  }, [isAuthenticated, isRouterReady]);
+  // Mostrar pantalla de carga mientras se verifica la autenticación o el router
+  if (!isRouterReady || isAuthLoading) {
+    return <LoadingScreen />;
+  }
 
-  if (!isAuthenticated || !isRouterReady) {
+  // Si no está autenticado, no renderizar nada (ya que se redirigirá)
+  if (!isAuthenticated) {
     return null;
   }
+
+  const isAdmin = user?.role === UserRole.ADMIN;
 
   return (
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: theme.primary[500],
-        tabBarInactiveTintColor: theme.text.tertiary,
-        headerShown: true,
+        tabBarInactiveTintColor: theme.text.secondary,
         tabBarStyle: {
           backgroundColor: theme.surface,
           borderTopColor: theme.border,
@@ -55,16 +65,12 @@ export default function TabLayout() {
         },
         tabBarLabelStyle: {
           fontSize: 12,
-          fontWeight: '500' as const,
+          marginBottom: 4,
         },
-        headerStyle: {
-          backgroundColor: theme.surface,
+        tabBarIconStyle: {
+          marginTop: 4,
         },
-        headerTitleStyle: {
-          color: theme.text.primary,
-          fontWeight: '600' as const,
-        },
-        headerTintColor: theme.text.primary,
+        headerShown: false,
       }}
     >
       <Tabs.Screen

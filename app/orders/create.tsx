@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, ScrollView, Alert, Pressable } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { Plus, Trash2, Save, X } from 'lucide-react-native';
@@ -64,6 +64,7 @@ export default function CreateOrderScreen() {
   });
   const [selectedClient, setSelectedClient] = useState<Partial<Client>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
 
   const addDevice = () => {
     const newDevice: NewDevice = {
@@ -132,6 +133,22 @@ export default function CreateOrderScreen() {
     }
   };
 
+  const getAccessoryStyle = (included: boolean, theme: any) => {
+    return {
+      paddingHorizontal: 12,
+      paddingVertical: 4,
+      borderRadius: 12,
+      borderWidth: 1,
+      backgroundColor: included 
+        ? theme.success + '33' 
+        : theme.error + '33',
+      borderColor: included 
+        ? theme.success 
+        : theme.error,
+    };
+  };
+  
+
   const handleClientSelect = (client: Partial<Client>) => {
     setSelectedClient(client);
     setOrder(prev => ({
@@ -145,53 +162,60 @@ export default function CreateOrderScreen() {
     }));
   };
 
-  const validateForm = (): boolean => {
-    if (!order.customerName.trim()) {
-      Alert.alert('Error', 'El nombre del cliente es requerido');
-      return false;
-    }
-    if (!order.customerPhone.trim()) {
-      Alert.alert('Error', 'El teléfono del cliente es requerido');
-      return false;
-    }
-    if (order.devices.length === 0) {
-      Alert.alert('Error', 'Debe agregar al menos un dispositivo');
-      return false;
-    }
-    
-    for (const device of order.devices) {
-      if (!device.brand.trim() || !device.model.trim() || !device.reportedIssue.trim()) {
-        Alert.alert('Error', 'Todos los campos del dispositivo son requeridos');
-        return false;
-      }
-      if (!device.reviewCost || isNaN(Number(device.reviewCost))) {
-        Alert.alert('Error', 'El costo de revisión debe ser un número válido');
-        return false;
-      }
-    }
-    
-    return true;
-  };
-
   const handleSubmit = async () => {
-    if (!validateForm()) return;
-
-    setIsSubmitting(true);
+    console.log('Iniciando envío del formulario...');
+    
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Validación manual para pruebas
+      console.log('Validando formulario manualmente...');
+      if (!order.customerName.trim()) {
+        console.log('Error: Nombre del cliente requerido');
+        Alert.alert('Error', 'El nombre del cliente es requerido');
+        return;
+      }
+
+      if (!order.customerPhone.trim()) {
+        Alert.alert('Error', 'El teléfono del cliente es requerido');
+        return;
+      }
+
+      if (order.devices.length === 0) {
+        Alert.alert('Error', 'Debe agregar al menos un dispositivo');
+        return;
+      }
+
+      setIsSubmitting(true);
+      console.log('Formulario validado, simulando envío...');
       
-      Alert.alert(
-        'Éxito',
-        'Orden de reparación creada exitosamente',
-        [{ text: 'OK', onPress: () => router.back() }]
-      );
+      // Simulamos un retraso más corto para pruebas
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      console.log('Mostrando alerta de éxito...');
+      setShowSuccess(true);
+      
     } catch (error) {
-      Alert.alert('Error', 'No se pudo crear la orden de reparación');
+      console.error('Error en handleSubmit:', error);
+      Alert.alert('Error', 'Ocurrió un error inesperado');
     } finally {
+      console.log('Finalizando handleSubmit...');
       setIsSubmitting(false);
     }
   };
+
+  useEffect(() => {
+    if (showSuccess) {
+      const timer = setTimeout(() => {
+        console.log('Navegando de regreso...');
+        if (router.canGoBack()) {
+          router.back();
+        } else {
+          router.replace('/(tabs)');
+        }
+      }, 1500);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [showSuccess]);
 
   const AccessoryInput = ({ deviceId }: { deviceId: string }) => {
     const [accessoryName, setAccessoryName] = useState('');
@@ -224,15 +248,8 @@ export default function CreateOrderScreen() {
 
   return (
     <>
-      <Stack.Screen 
-        options={{ 
-          title: 'Nueva Orden',
-          headerStyle: { backgroundColor: theme.surface },
-          headerTitleStyle: { color: theme.text.primary },
-          headerTintColor: theme.text.primary
-        }} 
-      />
-      <ScrollView style={[styles.container, { backgroundColor: theme.background }]} contentContainerStyle={styles.contentContainer}>
+      <Stack.Screen options={{ title: 'Nueva Orden' }} />
+      <ScrollView style={[styles.container, { backgroundColor: theme.background }]}>
         <Card style={{ backgroundColor: theme.surface, borderColor: theme.border }}>
           <Text style={[styles.sectionTitle, { color: theme.text.primary }]}>Información del Cliente</Text>
           
@@ -365,14 +382,24 @@ export default function CreateOrderScreen() {
                     <Text style={[styles.accessoryName, { color: theme.text.primary }]}>{accessory.name}</Text>
                     <Pressable
                       onPress={() => toggleAccessoryIncluded(device.id, accessory.id)}
-                      style={[
+                      style={({ pressed }) => [
                         styles.accessoryToggle,
-                        accessory.included ? styles.accessoryIncluded : styles.accessoryNotIncluded
+                        {
+                          opacity: pressed ? 0.7 : 1,
+                          backgroundColor: accessory.included 
+                            ? theme.success + '33' 
+                            : theme.error + '33',
+                          borderColor: accessory.included 
+                            ? theme.success 
+                            : theme.error,
+                        }
                       ]}
                     >
                       <Text style={[
                         styles.accessoryToggleText,
-                        { color: accessory.included ? theme.success : theme.error }
+                        { 
+                          color: accessory.included ? theme.success : theme.error 
+                        }
                       ]}>
                         {accessory.included ? 'Incluido' : 'No incluido'}
                       </Text>
@@ -406,10 +433,17 @@ export default function CreateOrderScreen() {
             fullWidth
             leftIcon={<Save size={18} color={theme.white} />}
           >
-            Crear Orden de Reparación
+            {isSubmitting ? 'Creando...' : 'Crear Orden de Reparación'}
           </Button>
         </View>
       </ScrollView>
+
+      {/* Notificación de éxito personalizada */}
+      {showSuccess && (
+        <View style={[styles.successOverlay, { backgroundColor: theme.primary[500] }]}>
+          <Text style={styles.successText}>¡Orden creada exitosamente!</Text>
+        </View>
+      )}
     </>
   );
 }
@@ -509,5 +543,26 @@ const styles = StyleSheet.create({
   },
   submitContainer: {
     marginTop: 24,
+  },
+  successOverlay: {
+    position: 'absolute',
+    bottom: 20,
+    left: 20,
+    right: 20,
+    padding: 15,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1000,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  successText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 16,
   },
 });

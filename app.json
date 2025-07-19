@@ -45,6 +45,11 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "build": {
+        "babel": {
+          "include": ["react-native-svg"]
+        }
+      }
   }
 }

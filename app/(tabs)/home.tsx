@@ -101,17 +101,6 @@ export default function HomeScreen() {
     },
   });
 
-  const getStatusColor = (status: RepairStatus) => {
-    switch (status) {
-      case RepairStatus.PENDING: return theme.warning;
-      case RepairStatus.IN_PROGRESS: return theme.info;
-      case RepairStatus.COMPLETED: return theme.success;
-      case RepairStatus.DELIVERED: return theme.primary[600];
-      case RepairStatus.CANCELLED: return theme.error;
-      default: return theme.neutral[500];
-    }
-  };
-
   const getStatusText = (status: RepairStatus) => {
     switch (status) {
       case RepairStatus.PENDING: return 'Pendiente';
@@ -202,7 +191,7 @@ export default function HomeScreen() {
             {new Date().getHours() < 12 ? 'Buenos días' : new Date().getHours() < 18 ? 'Buenas tardes' : 'Buenas noches'}
           </Text>
           <Text style={[styles.userName, { color: theme.text.primary }]}>
-            {user?.name || 'Usuario'}
+            {user?.firstName || 'Usuario'}
           </Text>
         </View>
         <View style={[styles.dateContainer, { backgroundColor: theme.primary[500] }]}>

@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'expo-router';
-import { LoginRequest, AuthState, User } from '@/types/auth';
+import { LoginRequest, AuthState, User, UserProfile } from '@/types/auth';
 import api from '../src/lib/api';
 import { saveToken, getToken as getStoredToken, removeToken } from '../src/lib/storage';
 
@@ -22,7 +22,7 @@ export const useAuth = () => {
         if (token) {
           try {
             // Intentamos obtener el perfil del usuario
-            const response = await api.get<User>('/auth/profile');
+            const response = await api.get<UserProfile>('/auth/profile');
             
             // Si llegamos aquí, el token es válido pero puede que no haya datos de usuario
             setState({
@@ -70,7 +70,7 @@ export const useAuth = () => {
     
     try {
       console.log('Iniciando sesión con credenciales:', credentials);
-      const response = await api.post<{ access_token: string; user: User }>('/auth/login', credentials);
+      const response = await api.post<{ access_token: string; user: UserProfile }>('/auth/login', credentials);
       
       if (!response.data || !response.data.access_token) {
         throw new Error('No se recibió un token válido del servidor');
@@ -80,16 +80,18 @@ export const useAuth = () => {
       await saveToken(response.data.access_token);
       
       console.log('Actualizando estado de autenticación...');
-      // Actualizar el estado primero
-      setState({
+      // Crear un nuevo objeto de estado para forzar la actualización
+      const newState = {
         user: response.data.user,
         token: response.data.access_token,
         isAuthenticated: true,
         isLoading: false,
         error: null,
-      });
+      };
       
-      // No es necesario navegar aquí, el efecto en _layout.tsx lo manejará
+      console.log('Nuevo estado de autenticación:', newState);
+      setState(newState);
+      
       return response.data.user;
     } catch (error: any) {
       console.error('Error en login:', error);
@@ -116,13 +118,16 @@ export const useAuth = () => {
     }
   }, []);
 
-  const logout = useCallback(async () => {
+  const logout = useCallback(async (): Promise<boolean> => {
+    console.log('Iniciando proceso de cierre de sesión...');
+    
     try {
-      await api.post('/auth/logout');
-    } catch (error) {
-      console.error('Error during logout:', error);
-    } finally {
+      // Limpiar el token de autenticación
+      console.log('Eliminando token de autenticación...');
       await removeToken();
+      
+      // Actualizar el estado
+      console.log('Actualizando estado de autenticación...');
       setState({
         user: null,
         token: null,
@@ -130,7 +135,28 @@ export const useAuth = () => {
         isLoading: false,
         error: null,
       });
-      router.replace('/login');
+      
+      console.log('Cierre de sesión completado con éxito');
+      return true;
+      
+    } catch (error) {
+      console.error('Error durante el cierre de sesión:', error);
+      
+      // Intentar limpiar el estado de todos modos
+      try {
+        await removeToken();
+        setState({
+          user: null,
+          token: null,
+          isAuthenticated: false,
+          isLoading: false,
+          error: 'Error al cerrar sesión',
+        });
+      } catch (cleanupError) {
+        console.error('Error al limpiar el estado después de un error:', cleanupError);
+      }
+      
+      return false;
     }
   }, []);
 

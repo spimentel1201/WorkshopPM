@@ -12,6 +12,14 @@ export interface User {
   updatedAt?: string;
 }
 
+export interface UserProfile {
+  id: string;
+  email: string;
+  role: UserRole;
+  firstName: string;
+  lastName: string;
+}
+
 export interface LoginRequest {
   email: string;
   password: string;
@@ -23,7 +31,7 @@ export interface LoginResponse {
 }
 
 export interface AuthState {
-  user: User | null;
+  user: UserProfile | null;
   token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;

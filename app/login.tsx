@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { View, StyleSheet, Alert, KeyboardAvoidingView, Platform, ScrollView, Text, TouchableOpacity } from 'react-native';
-import { Link } from 'expo-router';
+import { Link, router } from 'expo-router';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useAuth } from '@/hooks/useAuth';
@@ -8,7 +8,15 @@ import { useAuth } from '@/hooks/useAuth';
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const { login, isLoading, error } = useAuth();
+  const { login, isLoading, error, isAuthenticated } = useAuth();
+
+  // Redirigir si ya está autenticado
+  useEffect(() => {
+    if (isAuthenticated) {
+      console.log('Usuario ya autenticado, redirigiendo...');
+      router.replace('/(tabs)');
+    }
+  }, [isAuthenticated]);
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -17,9 +25,18 @@ export default function LoginScreen() {
     }
 
     try {
-      await login({ email, password });
+      console.log('Iniciando sesión...');
+      const success = await login({ email, password });
+      
+      if (success) {
+        console.log('Inicio de sesión exitoso, redirigiendo...');
+        // La redirección se manejará con el efecto cuando isAuthenticated cambie
+      } else {
+        console.log('Inicio de sesión fallido');
+      }
     } catch (error) {
-      console.error('Login error:', error);
+      console.error('Error en handleLogin:', error);
+      Alert.alert('Error', 'Ocurrió un error al iniciar sesión. Por favor, inténtalo de nuevo.');
     }
   };
 
