@@ -38,6 +38,8 @@ function RootLayoutNav() {
 
     // Si ya estamos listos, manejar la navegación
     if (isReady) {
+      console.log('Estado de autenticación:', { isAuthenticated, pathname });
+      
       // Si estamos en la ruta raíz, redirigir según autenticación
       if (pathname === '/') {
         console.log('Redirigiendo desde ruta raíz...');
@@ -47,40 +49,57 @@ function RootLayoutNav() {
 
       // Si el usuario no está autenticado y no está en la pantalla de login, redirigir a login
       if (!isAuthenticated && pathname !== '/login') {
-        console.log('Redirigiendo a login...');
+        console.log('Usuario no autenticado, redirigiendo a login...');
+        // Usar replace para evitar que el usuario pueda volver atrás
         router.replace('/login');
         return;
       }
 
       // Si el usuario está autenticado y está en la pantalla de login, redirigir a tabs
       if (isAuthenticated && pathname === '/login') {
-        console.log('Redirigiendo a la aplicación...');
+        console.log('Usuario autenticado, redirigiendo a la aplicación...');
         router.replace('/(tabs)');
         return;
       }
     } else {
       // Marcar como listo después del primer render
+      console.log('Componente listo, estableciendo isReady a true');
       setIsReady(true);
     }
   }, [isAuthenticated, isLoading, pathname, router, isReady]);
   
   // Mostrar pantalla de carga mientras se verifica la autenticación
   if (isLoading || !isReady) {
+    console.log('Mostrando pantalla de carga...');
     return <LoadingScreen />;
   }
 
+  console.log('Renderizando navegación...');
+  
   return (
     <>
       <StatusBar style={isDark ? "light" : "dark"} />
       <Stack 
         screenOptions={{ 
           headerShown: false,
-          animation: 'fade'
+          animation: 'fade',
+          gestureEnabled: false, // Deshabilitar gestos para evitar problemas de navegación
         }}
-        initialRouteName={initialPath === '/login' ? 'login' : isAuthenticated ? '(tabs)' : 'login'}
+        screenListeners={{
+          state: () => {
+            // Forzar una actualización del estado de navegación
+            return () => {};
+          },
+        }}
       >
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="login" />
+        <Stack.Screen 
+          name="(tabs)" 
+          redirect={!isAuthenticated}
+        />
+        <Stack.Screen 
+          name="login" 
+          redirect={isAuthenticated}
+        />
       </Stack>
     </>
   );

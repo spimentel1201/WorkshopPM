@@ -137,6 +137,12 @@ export const useAuth = () => {
       });
       
       console.log('Cierre de sesión completado con éxito');
+      
+      // Forzar una recarga de la aplicación para limpiar el estado de navegación
+      if (typeof window !== 'undefined') {
+        window.location.href = '/login';
+      }
+      
       return true;
       
     } catch (error) {
@@ -152,6 +158,10 @@ export const useAuth = () => {
           isLoading: false,
           error: 'Error al cerrar sesión',
         });
+        
+        if (typeof window !== 'undefined') {
+          window.location.href = '/login';
+        }
       } catch (cleanupError) {
         console.error('Error al limpiar el estado después de un error:', cleanupError);
       }
