@@ -55,39 +55,39 @@ export interface PaginatedResponse<T> {
 }
 
 export interface SaleItem {
-  id: string;
+  id?: string;
   productId: string;
-  productName: string;
+  productName?: string; // Add this field to include product name in the response dat
   quantity: number;
-  unitPrice: number;
-  totalPrice: number;
+  price: number;
+  totalPrice?: number;
 }
 
 export enum PaymentMethod {
   CASH = 'CASH',
   YAPE = 'YAPE',
-  CARD = 'CARD'
+  CREDIT_CARD = 'CREDIT CARD'
 }
 
 export interface PaymentDetails {
   method: PaymentMethod;
-  amount: number;
-  reference?: string; // For Yape operation code or card reference
-  phoneNumber?: string; // For Yape
-  receivedAmount?: number; // For cash to calculate change
-  change?: number; // For cash
+  amount?: number;
+  reference?: string;
+  phoneNumber?: string;
+  receivedAmount?: number;
+  change?: number;
 }
 
 export interface Sale {
-  id: string;
+  id?: string;
   items: SaleItem[];
-  subtotal: number;
-  tax: number;
-  total: number;
-  payment: PaymentDetails;
+  subtotal?: number;
+  total?: number;
+  paymentMethod: PaymentMethod;
+  customerId?: string;
   customerName?: string;
   customerPhone?: string;
   customerEmail?: string;
-  createdAt: string;
-  updatedAt: string;
+  createdAt?: string;
+  updatedAt?: string;
 }

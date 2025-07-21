@@ -1,4 +1,3 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { Package, Save } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
@@ -10,34 +9,37 @@ import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import colors from '@/constants/colors';
 import { useProductById } from '@/hooks/useProductById';
+import useProducts from '@/hooks/useProducts';
 
 interface EditProduct {
   name: string;
   description: string;
   price: string;
+  cost: string; // Nuevo campo
   stock: string;
   category: string;
 }
 
 const categoryOptions = [
-  { value: 'Pantallas', label: 'Pantallas' },
+  { value: 'Cables y Conectores', label: 'Cables y Conectores' },
+  { value: 'Adaptadores y Fuentes de Poder', label: 'Adaptadores y Fuentes de Poder' },
   { value: 'Baterías', label: 'Baterías' },
-  { value: 'Placas madre', label: 'Placas madre' },
   { value: 'Cargadores', label: 'Cargadores' },
-  { value: 'Memoria', label: 'Memoria' },
-  { value: 'Almacenamiento', label: 'Almacenamiento' },
-  { value: 'Procesadores', label: 'Procesadores' },
-  { value: 'Otros', label: 'Otros' },
+  { value: 'Arduino', label: 'Arduino' },
+  { value: 'Interruptores ', label: 'Interruptores ' },
+  { value: 'Repuestos de Licuadora', label: 'Repuestos de Licuadora' },
+  { value: 'Repuestos de Microonda', label: 'Repuestos de Microonda' },
 ];
 
 export default function EditProductScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const queryClient = useQueryClient();
-  
+  const { updateProduct } = useProducts();
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [product, setProduct] = useState<EditProduct>({
     name: '',
     description: '',
     price: '',
+    cost: '', // Nuevo campo
     stock: '',
     category: '',
   });
@@ -55,6 +57,7 @@ export default function EditProductScreen() {
         name: productData.name,
         description: productData.description,
         price: productData.price.toString(),
+        cost: productData.cost.toString(),
         stock: productData.stock.toString(),
         category: productData.category,
       });
@@ -62,29 +65,28 @@ export default function EditProductScreen() {
   }, [productData]);
 
   // Update product mutation
-  const updateProductMutation = useMutation({
-    mutationFn: async (updatedProduct: EditProduct) => {
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      return { 
-        ...productData!, 
-        ...updatedProduct,
-        price: Number(updatedProduct.price),
-        stock: Number(updatedProduct.stock),
-      };
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['products'] });
-      queryClient.invalidateQueries({ queryKey: ['product', id] });
-      Alert.alert(
-        'Éxito',
-        'Producto actualizado exitosamente',
-        [{ text: 'OK', onPress: () => router.back() }]
-      );
-    },
-    onError: () => {
+  const handleSubmit = async () => {
+    if (!validateForm()) return;
+    setIsSubmitting(true);
+    try {
+      await updateProduct.mutateAsync({
+        id: Array.isArray(id) ? id[0] : id || '',
+        data: {
+          name: product.name,
+          description: product.description,
+          price: parseFloat(product.price),
+          stock: parseInt(product.stock),
+          category: product.category,
+          cost: parseFloat(product.cost),
+        }
+      });
+      
+      Alert.alert('Éxito', 'Producto actualizado correctamente');
+      router.back();
+    } catch (error) {
       Alert.alert('Error', 'No se pudo actualizar el producto');
-    },
-  });
+    }
+  };
 
   const validateForm = (): boolean => {
     const newErrors: Partial<EditProduct> = {};
@@ -115,11 +117,6 @@ export default function EditProductScreen() {
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSubmit = async () => {
-    if (!validateForm()) return;
-    updateProductMutation.mutate(product);
   };
 
   if (isLoading) {
@@ -196,6 +193,15 @@ export default function EditProductScreen() {
           <Text style={styles.sectionTitle}>Precio e Inventario</Text>
           
           <Input
+            label="Precio de Compra"
+            placeholder="0.00"
+            value={product.cost}
+            onChangeText={(value) => setProduct(prev => ({ ...prev, cost: value }))}
+            keyboardType="numeric"
+            error={errors.cost}
+          />
+          
+          <Input
             label="Precio de Venta"
             placeholder="0.00"
             value={product.price}
@@ -217,8 +223,8 @@ export default function EditProductScreen() {
         <View style={styles.submitContainer}>
           <Button
             onPress={handleSubmit}
-            loading={updateProductMutation.isPending}
-            disabled={updateProductMutation.isPending}
+            loading={isSubmitting}
+            disabled={isSubmitting}
             fullWidth
             leftIcon={<Save size={18} color={colors.white} />}
           >

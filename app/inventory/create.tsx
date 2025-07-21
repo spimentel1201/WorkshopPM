@@ -1,46 +1,44 @@
-import { useState } from 'react';
-import { StyleSheet, Text, View, ScrollView, Alert } from 'react-native';
 import { Stack, router } from 'expo-router';
-import { Save, Package } from 'lucide-react-native';
+import { Package, Save } from 'lucide-react-native';
+import { useState } from 'react';
+import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import colors from '@/constants/colors';
+import { useProducts } from '@/hooks/useProducts';
 
 interface NewProduct {
   name: string;
   description: string;
-  sku: string;
   price: string;
   stock: string;
+  cost: string; // Nuevo camp
   category: string;
-  brand: string;
-  model: string;
 }
 
 const categoryOptions = [
-  { value: 'Pantallas', label: 'Pantallas' },
+  { value: 'Cables y Conectores', label: 'Cables y Conectores' },
+  { value: 'Adaptadores y Fuentes de Poder', label: 'Adaptadores y Fuentes de Poder' },
   { value: 'Baterías', label: 'Baterías' },
-  { value: 'Placas madre', label: 'Placas madre' },
   { value: 'Cargadores', label: 'Cargadores' },
-  { value: 'Memoria', label: 'Memoria' },
-  { value: 'Almacenamiento', label: 'Almacenamiento' },
-  { value: 'Procesadores', label: 'Procesadores' },
-  { value: 'Otros', label: 'Otros' },
+  { value: 'Arduino', label: 'Arduino' },
+  { value: 'Interruptores ', label: 'Interruptores ' },
+  { value: 'Repuestos de Licuadora', label: 'Repuestos de Licuadora' },
+  { value: 'Repuestos de Microonda', label: 'Repuestos de Microonda' },
 ];
 
 export default function CreateProductScreen() {
+  const { createProduct } = useProducts();
   const [product, setProduct] = useState<NewProduct>({
     name: '',
     description: '',
-    sku: '',
     price: '',
+    cost: '', // Nuevo camp
     stock: '',
     category: '',
-    brand: '',
-    model: '',
   });
 
   const [errors, setErrors] = useState<Partial<NewProduct>>({});
@@ -48,13 +46,12 @@ export default function CreateProductScreen() {
 
   const generateSKU = () => {
     const categoryCode = product.category.substring(0, 3).toUpperCase();
-    const brandCode = product.brand.substring(0, 3).toUpperCase();
     const randomNum = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-    return `${categoryCode}-${brandCode}-${randomNum}`;
+    return `${categoryCode}-XAN-${randomNum}`;
   };
 
   const handleGenerateSKU = () => {
-    if (product.category && product.brand) {
+    if (product.category) {
       const newSKU = generateSKU();
       setProduct(prev => ({ ...prev, sku: newSKU }));
     } else {
@@ -73,10 +70,6 @@ export default function CreateProductScreen() {
       newErrors.description = 'La descripción es requerida';
     }
 
-    if (!product.sku.trim()) {
-      newErrors.sku = 'El SKU es requerido';
-    }
-
     if (!product.price) {
       newErrors.price = 'El precio es requerido';
     } else if (isNaN(Number(product.price)) || Number(product.price) <= 0) {
@@ -93,27 +86,25 @@ export default function CreateProductScreen() {
       newErrors.category = 'Seleccione una categoría';
     }
 
-    if (!product.brand.trim()) {
-      newErrors.brand = 'La marca es requerida';
-    }
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async () => {
     if (!validateForm()) return;
-
     setIsSubmitting(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await createProduct.mutateAsync({
+        name: product.name,
+        description: product.description,
+        price: parseFloat(product.price),
+        stock: parseInt(product.stock),
+        category: product.category,
+        cost: parseFloat(product.cost),
+      });
       
-      Alert.alert(
-        'Éxito',
-        'Producto creado exitosamente',
-        [{ text: 'OK', onPress: () => router.back() }]
-      );
+      Alert.alert('Éxito', 'Producto creado correctamente');
+      router.back();
     } catch (error) {
       Alert.alert('Error', 'No se pudo crear el producto');
     } finally {
@@ -178,14 +169,6 @@ export default function CreateProductScreen() {
           <Text style={styles.sectionTitle}>Identificación</Text>
           
           <View style={styles.skuContainer}>
-            <Input
-              label="SKU (Código del Producto)"
-              placeholder="Ej: PAN-SAM-001"
-              value={product.sku}
-              onChangeText={(value) => setProduct(prev => ({ ...prev, sku: value }))}
-              error={errors.sku}
-              style={styles.skuInput}
-            />
             <Button
               onPress={handleGenerateSKU}
               variant="outline"
@@ -195,25 +178,19 @@ export default function CreateProductScreen() {
               Generar
             </Button>
           </View>
-
-          <Input
-            label="Marca"
-            placeholder="Ej: Samsung, HP, Apple"
-            value={product.brand}
-            onChangeText={(value) => setProduct(prev => ({ ...prev, brand: value }))}
-            error={errors.brand}
-          />
-          
-          <Input
-            label="Modelo (Opcional)"
-            placeholder="Ej: Galaxy S21, Pavilion"
-            value={product.model}
-            onChangeText={(value) => setProduct(prev => ({ ...prev, model: value }))}
-          />
         </Card>
 
         <Card>
           <Text style={styles.sectionTitle}>Precio e Inventario</Text>
+          
+          <Input
+            label="Precio de Compra"
+            placeholder="0.00"
+            value={product.cost}
+            onChangeText={(value) => setProduct(prev => ({ ...prev, cost: value }))}
+            keyboardType="numeric"
+            error={errors.cost}
+          />
           
           <Input
             label="Precio de Venta"
@@ -223,7 +200,7 @@ export default function CreateProductScreen() {
             keyboardType="numeric"
             error={errors.price}
           />
-          
+
           <Input
             label="Stock Inicial"
             placeholder="0"

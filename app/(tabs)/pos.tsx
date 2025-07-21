@@ -1,75 +1,15 @@
-import { useRef, useState } from 'react';
-import { StyleSheet, Text, View, FlatList, TextInput, Image, Pressable, Dimensions, Animated, Platform } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
-import { Search, ShoppingCart, Plus, Minus, Trash2 } from 'lucide-react-native';
+import { Minus, Plus, Search, ShoppingCart } from 'lucide-react-native';
+import { useRef, useState } from 'react';
+import { Animated, Dimensions, FlatList, Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { Button } from '@/components/ui/Button';
 import colors from '@/constants/colors';
 import { Product, SaleItem } from '@/types/inventory';
 import { useTheme } from '@react-navigation/native';
-import { Button } from '@/components/ui/Button';
 
 const { width } = Dimensions.get('window');
-const isTablet = width > 768;
-
-const mockProducts: Product[] = [
-  {
-    id: '1',
-    name: 'Pantalla LCD Samsung Galaxy S21',
-    description: 'Pantalla de repuesto original para Samsung Galaxy S21',
-    sku: 'SCR-SAM-S21',
-    price: 120,
-    stock: 15,
-    category: 'Pantallas',
-    brand: 'Samsung',
-    model: 'Galaxy S21',
-    imageUrl: 'https://placehold.co/100x100/0072ff/FFFFFF.png?text=LCD',
-    createdAt: '2025-06-01T10:00:00Z',
-    updatedAt: '2025-06-01T10:00:00Z',
-  },
-  {
-    id: '2',
-    name: 'Batería HP Pavilion',
-    description: 'Batería de repuesto para laptops HP Pavilion',
-    sku: 'BAT-HP-PAV',
-    price: 85,
-    stock: 8,
-    category: 'Baterías',
-    brand: 'HP',
-    model: 'Pavilion',
-    imageUrl: 'https://placehold.co/100x100/0072ff/FFFFFF.png?text=BAT',
-    createdAt: '2025-06-02T11:30:00Z',
-    updatedAt: '2025-06-02T11:30:00Z',
-  },
-  {
-    id: '3',
-    name: 'Placa madre ASUS ROG',
-    description: 'Placa madre para computadoras gaming ASUS ROG',
-    sku: 'MB-ASUS-ROG',
-    price: 250,
-    stock: 5,
-    category: 'Placas madre',
-    brand: 'ASUS',
-    model: 'ROG',
-    imageUrl: 'https://placehold.co/100x100/0072ff/FFFFFF.png?text=MB',
-    createdAt: '2025-06-03T09:15:00Z',
-    updatedAt: '2025-06-03T09:15:00Z',
-  },
-  {
-    id: '4',
-    name: 'Cargador MacBook Pro',
-    description: 'Cargador original para MacBook Pro',
-    sku: 'CHG-MAC-PRO',
-    price: 75,
-    stock: 12,
-    category: 'Cargadores',
-    brand: 'Apple',
-    model: 'MacBook Pro',
-    imageUrl: 'https://placehold.co/100x100/0072ff/FFFFFF.png?text=CHG',
-    createdAt: '2025-06-04T14:45:00Z',
-    updatedAt: '2025-06-04T14:45:00Z',
-  },
-];
 
 interface CartButtonProps {
   itemCount: number;
@@ -144,23 +84,21 @@ export default function POSScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [cartItems, setCartItems] = useState<SaleItem[]>([]);
 
-  // Fetch products
+  // Fetch products from backend
   const { data: products, isLoading } = useQuery({
     queryKey: ['products'],
     queryFn: async () => {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      return mockProducts;
+      const response = await fetch('/api/products');
+      if (!response.ok) throw new Error('Failed to fetch products');
+      return response.json();
     },
   });
 
   // Filter products based on search query
-  const filteredProducts = products?.filter(product => 
+  const filteredProducts = products?.filter((product: Product) => 
     product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    product.sku.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    product.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (product.brand && product.brand.toLowerCase().includes(searchQuery.toLowerCase())) ||
-    (product.model && product.model.toLowerCase().includes(searchQuery.toLowerCase()))
+    product.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    product.category.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const addToCart = (product: Product) => {
@@ -174,7 +112,7 @@ export default function POSScreen() {
             ? { 
                 ...item, 
                 quantity: item.quantity + 1,
-                totalPrice: (item.quantity + 1) * item.unitPrice
+                totalPrice: (item.quantity + 1) * item.price
               }
             : item
         )
@@ -188,7 +126,7 @@ export default function POSScreen() {
           productId: product.id,
           productName: product.name,
           quantity: 1,
-          unitPrice: product.price,
+          price: product.price,
           totalPrice: product.price,
         },
       ]);
@@ -202,7 +140,7 @@ export default function POSScreen() {
           ? { 
               ...item, 
               quantity: item.quantity + 1,
-              totalPrice: (item.quantity + 1) * item.unitPrice
+              totalPrice: (item.quantity + 1) * item.price
             }
           : item
       )
@@ -216,7 +154,7 @@ export default function POSScreen() {
           ? { 
               ...item, 
               quantity: item.quantity - 1,
-              totalPrice: (item.quantity - 1) * item.unitPrice
+              totalPrice: (item.quantity - 1) * item.price
             }
           : item
       )

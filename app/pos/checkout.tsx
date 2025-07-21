@@ -1,13 +1,14 @@
-import { useState } from 'react';
-import { StyleSheet, Text, View, ScrollView, Alert } from 'react-native';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
-import { CreditCard, Smartphone, DollarSign, Receipt } from 'lucide-react-native';
+import { CreditCard, DollarSign, Receipt, Smartphone } from 'lucide-react-native';
+import { useState } from 'react';
+import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import colors from '@/constants/colors';
-import { PaymentMethod, PaymentDetails, SaleItem } from '@/types/inventory';
+import { useSales } from '@/hooks/useSales';
+import { PaymentMethod, SaleItem } from '@/types/inventory';
 
 export default function CheckoutScreen() {
   const params = useLocalSearchParams();
@@ -30,9 +31,9 @@ export default function CheckoutScreen() {
   
   const [isProcessing, setIsProcessing] = useState(false);
 
-  const subtotal = cartItems.reduce((sum, item) => sum + item.totalPrice, 0);
-  const tax = subtotal * 0.18; // 18% IGV
-  const total = subtotal + tax;
+  const subtotal = cartItems.reduce((sum, item) => sum + item.price, 0);
+  //const tax = subtotal * 0.18; // 18% IGV
+  const total = subtotal;
 
   const calculateChange = (): number => {
     if (paymentMethod === PaymentMethod.CASH && receivedAmount) {
@@ -67,7 +68,7 @@ export default function CheckoutScreen() {
         }
         return true;
         
-      case PaymentMethod.CARD:
+      case PaymentMethod.CREDIT_CARD:
         if (!cardReference.trim()) {
           Alert.alert('Error', 'Ingrese la referencia de la tarjeta');
           return false;
@@ -79,45 +80,32 @@ export default function CheckoutScreen() {
     }
   };
 
+  const { createSale } = useSales();
+
   const handleProcessPayment = async () => {
     if (!validatePayment()) return;
 
     setIsProcessing(true);
     try {
-      // Simulate payment processing
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      const paymentDetails: PaymentDetails = {
-        method: paymentMethod,
-        amount: total,
+      const saleData = {
+        customerId: '',
+        customerName: customerName || 'Cliente no registrado',
+        payment: paymentMethod,
+        items: cartItems.map(item => ({
+          productId: item.productId,
+          quantity: item.quantity,
+          price: item.price
+        }))
       };
 
-      switch (paymentMethod) {
-        case PaymentMethod.CASH:
-          paymentDetails.receivedAmount = parseFloat(receivedAmount);
-          paymentDetails.change = calculateChange();
-          break;
-        case PaymentMethod.YAPE:
-          paymentDetails.phoneNumber = yapePhone;
-          paymentDetails.reference = yapeReference;
-          break;
-        case PaymentMethod.CARD:
-          paymentDetails.reference = cardReference;
-          break;
-      }
-
-      // Here you would create the sale record
-      console.log('Sale completed:', {
-        items: cartItems,
-        subtotal,
-        tax,
-        total,
-        payment: paymentDetails,
-        customer: {
-          name: customerName || undefined,
-          phone: customerPhone || undefined,
-          email: customerEmail || undefined,
-        }
+      await createSale.mutateAsync({
+        customerName: customerName || 'Cliente no registrado',
+        paymentMethod: paymentMethod,
+        items: cartItems.map(item => ({
+          productId: item.productId,
+          quantity: item.quantity,
+          price: item.price
+        })),
       });
 
       Alert.alert(
@@ -126,10 +114,7 @@ export default function CheckoutScreen() {
         [
           {
             text: 'Imprimir Boleta',
-            onPress: () => {
-              // Handle receipt printing
-              router.replace('/(tabs)/pos');
-            }
+            onPress: () => router.replace('/(tabs)/pos')
           },
           {
             text: 'Finalizar',
@@ -150,7 +135,7 @@ export default function CheckoutScreen() {
         return <DollarSign size={20} color={colors.white} />;
       case PaymentMethod.YAPE:
         return <Smartphone size={20} color={colors.white} />;
-      case PaymentMethod.CARD:
+      case PaymentMethod.CREDIT_CARD:
         return <CreditCard size={20} color={colors.white} />;
     }
   };
@@ -161,7 +146,7 @@ export default function CheckoutScreen() {
         return 'Efectivo';
       case PaymentMethod.YAPE:
         return 'Yape';
-      case PaymentMethod.CARD:
+      case PaymentMethod.CREDIT_CARD:
         return 'Tarjeta';
     }
   };
@@ -183,22 +168,18 @@ export default function CheckoutScreen() {
             <View key={item.id} style={styles.orderItem}>
               <Text style={styles.itemName}>{item.productName}</Text>
               <Text style={styles.itemQuantity}>x{item.quantity}</Text>
-              <Text style={styles.itemPrice}>${item.totalPrice.toFixed(2)}</Text>
+              <Text style={styles.itemPrice}>${item.price.toFixed(2)}</Text>
             </View>
           ))}
           
           <View style={styles.totalsSection}>
             <View style={styles.totalRow}>
               <Text style={styles.totalLabel}>Subtotal:</Text>
-              <Text style={styles.totalValue}>${subtotal.toFixed(2)}</Text>
-            </View>
-            <View style={styles.totalRow}>
-              <Text style={styles.totalLabel}>IGV (18%):</Text>
-              <Text style={styles.totalValue}>${tax.toFixed(2)}</Text>
+              <Text style={styles.totalValue}>S/{subtotal.toFixed(2)}</Text>
             </View>
             <View style={[styles.totalRow, styles.finalTotal]}>
               <Text style={styles.finalTotalLabel}>Total:</Text>
-              <Text style={styles.finalTotalValue}>${total.toFixed(2)}</Text>
+              <Text style={styles.finalTotalValue}>S/{total.toFixed(2)}</Text>
             </View>
           </View>
         </Card>
@@ -287,7 +268,7 @@ export default function CheckoutScreen() {
             </View>
           )}
 
-          {paymentMethod === PaymentMethod.CARD && (
+          {paymentMethod === PaymentMethod.CREDIT_CARD && (
             <View style={styles.paymentFields}>
               <Input
                 label="Referencia de Tarjeta"

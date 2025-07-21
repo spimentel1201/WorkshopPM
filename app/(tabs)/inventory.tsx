@@ -1,24 +1,19 @@
-import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import type { ListRenderItem } from 'react-native';
-import { View, StyleSheet, FlatList, RefreshControl, Alert, Text } from 'react-native';
-import { useRouter } from 'expo-router';
-import { useTheme } from '@/hooks/useTheme';
-import { useAuth } from '@/hooks/useAuth';
-import { Product } from '@/types/inventory';
-import { useProducts } from '@/hooks/useProducts';
-import { Button } from '@/components/ui/Button';
-import { MaterialIcons } from '@expo/vector-icons';
-import SearchBar from '@/components/ui/SearchBar';
-import {EmptyState} from '@/components/EmptyState';
+import { EmptyState } from '@/components/EmptyState';
 import ErrorState from '@/components/ErrorState';
 import LoadingState from '@/components/LoadingState';
-import {Card} from '@/components/ui/Card';
-import { useQueryClient } from '@tanstack/react-query';
+import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import SearchBar from '@/components/ui/SearchBar';
+import { useAuth } from '@/hooks/useAuth';
+import { useProducts } from '@/hooks/useProducts';
+import { useTheme } from '@/hooks/useTheme';
+import { Product } from '@/types/inventory';
+import { MaterialIcons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { ListRenderItem } from 'react-native';
+import { Alert, FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
-  // Eliminar el useMemo para getDeleteLabel y definirlo como una función normal
-  // fuera del componente para evitar recreaciones
-
-  // Antes de la definición del componente InventoryScreen
   const getDeleteLabel = (name: string) => `Eliminar producto: ${name}`;
 
   export default function InventoryScreen() {
@@ -26,7 +21,6 @@ import { useQueryClient } from '@tanstack/react-query';
     const router = useRouter();
     const { user } = useAuth();
     const { theme, isDark } = useTheme();
-    const queryClient = useQueryClient();
     const searchBarRef = useRef<any>(null);
     
     // State for search and filter
@@ -91,7 +85,7 @@ import { useQueryClient } from '@tanstack/react-query';
             onPress: () => {
               deleteProduct.mutate(productId, {
                 onSuccess: () => {
-                  queryClient.invalidateQueries({ queryKey: ['products'] });
+                  Alert.alert('Éxito', 'Producto eliminado correctamente');
                 },
                 onError: () => {
                   Alert.alert('Error', 'No se pudo eliminar el producto');
@@ -101,7 +95,7 @@ import { useQueryClient } from '@tanstack/react-query';
           },
         ]
       );
-    }, [deleteProduct, queryClient]);
+    }, [deleteProduct]);
   
     // Handle edit navigation
     const handleEditProduct = useCallback((productId: string) => {
@@ -126,7 +120,7 @@ import { useQueryClient } from '@tanstack/react-query';
     const renderProductItem: ListRenderItem<Product> = useCallback(({ item }) => (
       <Card 
         style={styles.productCard}
-        accessibilityLabel={`Producto: ${item.name}, Precio: S/ ${item.price.toFixed(2)}, Stock: ${item.stock}`}
+        accessibilityLabel={`Producto: ${item.name}, Precio: S/ ${item.price.toFixed(2)}, Stock: ${item.stock},`}
       >
         <View style={styles.productHeader}>
           <Text 
@@ -232,10 +226,11 @@ import { useQueryClient } from '@tanstack/react-query';
           
           {user?.role === 'ADMIN' && (
             <Button 
-              onPress={() => router.push('/inventory/new')}
+              onPress={() => router.push('/inventory/create')}  // Asegúrate que es '/inventory/create' y no '/inventory/new'
               style={styles.addButton}
             >
-              <MaterialIcons name="add" size={24} color="white" />
+              <MaterialIcons name="add" size={20} color="white" />
+              <Text style={styles.addButtonText}>Nuevo Producto</Text>
             </Button>
           )}
         </View>
@@ -281,11 +276,17 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   addButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    justifyContent: 'center',
+    flexDirection: 'row',
     alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  addButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginLeft: 8,
   },
   listContent: {
     paddingBottom: 24,
