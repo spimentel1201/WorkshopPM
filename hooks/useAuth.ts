@@ -69,18 +69,14 @@ export const useAuth = () => {
     setState(prev => ({ ...prev, isLoading: true, error: null }));
     
     try {
-      console.log('Iniciando sesión con credenciales:', credentials);
       const response = await api.post<{ access_token: string; user: UserProfile }>('/auth/login', credentials);
       
       if (!response.data || !response.data.access_token) {
         throw new Error('No se recibió un token válido del servidor');
       }
       
-      console.log('Token recibido, guardando...');
       await saveToken(response.data.access_token);
       
-      console.log('Actualizando estado de autenticación...');
-      // Crear un nuevo objeto de estado para forzar la actualización
       const newState = {
         user: response.data.user,
         token: response.data.access_token,
@@ -89,12 +85,10 @@ export const useAuth = () => {
         error: null,
       };
       
-      console.log('Nuevo estado de autenticación:', newState);
       setState(newState);
       
       return response.data.user;
     } catch (error: any) {
-      console.error('Error en login:', error);
       
       let errorMessage = 'Error de conexión con el servidor';
       
@@ -119,15 +113,10 @@ export const useAuth = () => {
   }, []);
 
   const logout = useCallback(async (): Promise<boolean> => {
-    console.log('Iniciando proceso de cierre de sesión...');
     
     try {
-      // Limpiar el token de autenticación
-      console.log('Eliminando token de autenticación...');
       await removeToken();
       
-      // Actualizar el estado
-      console.log('Actualizando estado de autenticación...');
       setState({
         user: null,
         token: null,
@@ -136,9 +125,6 @@ export const useAuth = () => {
         error: null,
       });
       
-      console.log('Cierre de sesión completado con éxito');
-      
-      // Forzar una recarga de la aplicación para limpiar el estado de navegación
       if (typeof window !== 'undefined') {
         window.location.href = '/login';
       }
@@ -146,9 +132,6 @@ export const useAuth = () => {
       return true;
       
     } catch (error) {
-      console.error('Error durante el cierre de sesión:', error);
-      
-      // Intentar limpiar el estado de todos modos
       try {
         await removeToken();
         setState({
@@ -163,16 +146,27 @@ export const useAuth = () => {
           window.location.href = '/login';
         }
       } catch (cleanupError) {
-        console.error('Error al limpiar el estado después de un error:', cleanupError);
+        
       }
       
       return false;
     }
   }, []);
 
+  const updateUser = useCallback((userData: UserProfile) => {
+    setState(prev => ({
+      ...prev,
+      user: {
+        ...prev.user,
+        ...userData,
+      },
+    }));
+  }, []);
+
   return {
     ...state,
     login,
     logout,
+    updateUser,
   };
 };

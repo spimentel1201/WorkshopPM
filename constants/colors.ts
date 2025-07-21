@@ -1,4 +1,5 @@
 export interface ColorScheme {
+    danger: string;
     primary: {
       50: string;
       100: string;
@@ -102,6 +103,7 @@ export interface ColorScheme {
       secondary: '#475569',
       tertiary: '#64748b',
     },
+    danger: '#ef4444'
   };
   
   const darkColors: ColorScheme = {
@@ -155,6 +157,7 @@ export interface ColorScheme {
       secondary: '#cbd5e1',
       tertiary: '#94a3b8',
     },
+    danger: '#ef4444'
   };
   
   const colors = lightColors;

@@ -163,13 +163,8 @@ export default function CreateOrderScreen() {
   };
 
   const handleSubmit = async () => {
-    console.log('Iniciando envío del formulario...');
-    
     try {
-      // Validación manual para pruebas
-      console.log('Validando formulario manualmente...');
       if (!order.customerName.trim()) {
-        console.log('Error: Nombre del cliente requerido');
         Alert.alert('Error', 'El nombre del cliente es requerido');
         return;
       }
@@ -185,19 +180,14 @@ export default function CreateOrderScreen() {
       }
 
       setIsSubmitting(true);
-      console.log('Formulario validado, simulando envío...');
       
-      // Simulamos un retraso más corto para pruebas
       await new Promise(resolve => setTimeout(resolve, 500));
       
-      console.log('Mostrando alerta de éxito...');
       setShowSuccess(true);
       
     } catch (error) {
-      console.error('Error en handleSubmit:', error);
       Alert.alert('Error', 'Ocurrió un error inesperado');
     } finally {
-      console.log('Finalizando handleSubmit...');
       setIsSubmitting(false);
     }
   };
@@ -205,7 +195,6 @@ export default function CreateOrderScreen() {
   useEffect(() => {
     if (showSuccess) {
       const timer = setTimeout(() => {
-        console.log('Navegando de regreso...');
         if (router.canGoBack()) {
           router.back();
         } else {

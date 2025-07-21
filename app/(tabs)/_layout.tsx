@@ -17,9 +17,6 @@ function LoadingScreen() {
 
 export default function TabLayout() {
   const { user, isAuthenticated, isLoading: isAuthLoading } = useAuth();
-  console.log('User:', user);
-  console.log('IsAuthenticated:', isAuthenticated);
-  console.log('IsAuthLoading:', isAuthLoading); 
   const { theme } = useTheme();
   const [isRouterReady, setIsRouterReady] = useState(false);
   const router = useRouter();

@@ -13,7 +13,6 @@ export default function LoginScreen() {
   // Redirigir si ya está autenticado
   useEffect(() => {
     if (isAuthenticated) {
-      console.log('Usuario ya autenticado, redirigiendo...');
       router.replace('/(tabs)');
     }
   }, [isAuthenticated]);
@@ -25,17 +24,14 @@ export default function LoginScreen() {
     }
 
     try {
-      console.log('Iniciando sesión...');
       const success = await login({ email, password });
       
       if (success) {
-        console.log('Inicio de sesión exitoso, redirigiendo...');
         // La redirección se manejará con el efecto cuando isAuthenticated cambie
       } else {
-        console.log('Inicio de sesión fallido');
+        Alert.alert('Error', 'Inicio de sesión fallido');
       }
     } catch (error) {
-      console.error('Error en handleLogin:', error);
       Alert.alert('Error', 'Ocurrió un error al iniciar sesión. Por favor, inténtalo de nuevo.');
     }
   };

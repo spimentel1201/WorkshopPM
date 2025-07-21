@@ -15,6 +15,7 @@ interface ButtonProps {
   loading?: boolean;
   leftIcon?: ReactNode;
   rightIcon?: ReactNode;
+  accessibilityLabel?: string;
   style?: any;
 }
 
@@ -105,17 +106,12 @@ export const Button = ({
   return (
     <Pressable
       onPress={(e) => {
-        console.log('Botón presionado');
         if (!disabled && !loading && onPress) {
-          console.log('Ejecutando onPress');
           onPress();
-        } else {
-          console.log('Botón deshabilitado o cargando:', { disabled, loading });
         }
       }}
       disabled={disabled || loading}
       style={({ pressed }) => {
-        console.log('Estado de presión del botón:', { pressed });
         return [
           styles.button,
           {

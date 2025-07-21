@@ -6,33 +6,26 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { useTheme, ThemeMode } from '@/hooks/useTheme';
 import { useAuth } from '@/hooks/useAuth';
+import { useRouter } from 'expo-router';
 
 export default function SettingsScreen() {
   const { user, logout } = useAuth();
   const { theme, themeMode, setThemeMode } = useTheme();
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const router = useRouter();
 
   const handleLogout = async (): Promise<boolean> => {
-    console.log('handleLogout iniciado');
-    
     try {
-      console.log('Llamando a la función logout...');
       const success = await logout();
-      console.log('Resultado de logout:', success);
       
       if (success) {
-        console.log('Redirigiendo a la pantalla de login...');
-        // Usar el router de expo-router directamente
-        const router = require('expo-router').router;
         router.replace('/login');
         return true;
       } else {
-        console.error('No se pudo cerrar la sesión correctamente');
         Alert.alert("Error", "No se pudo cerrar la sesión. Inténtalo de nuevo.");
         return false;
       }
     } catch (error) {
-      console.error('Error en handleLogout:', error);
       Alert.alert("Error", "Ocurrió un error al intentar cerrar sesión.");
       return false;
     }
@@ -68,7 +61,7 @@ export default function SettingsScreen() {
         <Card>
           <View style={styles.profileSection}>
             <View style={[styles.profileAvatar, { backgroundColor: theme.primary[500] }]}>
-              <Text style={[styles.profileInitial, { color: theme.white }]}>{'U'}</Text>
+              <Text style={[styles.profileInitial, { color: theme.white }]}>{user?.firstName?.[0] || 'U'}</Text>
             </View>
             <View style={styles.profileInfo}>
               <Text style={[styles.profileName, { color: theme.text.primary }]}>{user?.firstName || 'Usuario'}</Text>
@@ -79,7 +72,7 @@ export default function SettingsScreen() {
             </View>
           </View>
           <Button
-            onPress={() => {/* Navigate to profile edit */}}
+            onPress={() => router.push(`/users/${user?.id}/edit`)}
             variant="outline"
             leftIcon={<User size={18} color={theme.primary[500]} />}
           >
@@ -132,9 +125,8 @@ export default function SettingsScreen() {
       <View style={styles.logoutContainer}>
         <Button
           onPress={() => {
-            console.log('Botón de cerrar sesión presionado');
             handleLogout().catch(error => {
-              console.error('Error al manejar el cierre de sesión:', error);
+              Alert.alert("Error", "Ocurrió un error al intentar cerrar sesión.");
             });
           }}
           variant="outline"

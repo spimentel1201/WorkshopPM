@@ -32,49 +32,39 @@ function RootLayoutNav() {
   useEffect(() => {
     // Solo procesar redirecciones una vez que el estado de autenticación esté listo
     if (isLoading) {
-      console.log('Cargando estado de autenticación...');
       return;
     }
 
     // Si ya estamos listos, manejar la navegación
     if (isReady) {
-      console.log('Estado de autenticación:', { isAuthenticated, pathname });
       
       // Si estamos en la ruta raíz, redirigir según autenticación
       if (pathname === '/') {
-        console.log('Redirigiendo desde ruta raíz...');
         router.replace(isAuthenticated ? '/(tabs)' : '/login');
         return;
       }
 
       // Si el usuario no está autenticado y no está en la pantalla de login, redirigir a login
       if (!isAuthenticated && pathname !== '/login') {
-        console.log('Usuario no autenticado, redirigiendo a login...');
-        // Usar replace para evitar que el usuario pueda volver atrás
         router.replace('/login');
         return;
       }
 
       // Si el usuario está autenticado y está en la pantalla de login, redirigir a tabs
       if (isAuthenticated && pathname === '/login') {
-        console.log('Usuario autenticado, redirigiendo a la aplicación...');
         router.replace('/(tabs)');
         return;
       }
     } else {
       // Marcar como listo después del primer render
-      console.log('Componente listo, estableciendo isReady a true');
       setIsReady(true);
     }
   }, [isAuthenticated, isLoading, pathname, router, isReady]);
   
   // Mostrar pantalla de carga mientras se verifica la autenticación
   if (isLoading || !isReady) {
-    console.log('Mostrando pantalla de carga...');
     return <LoadingScreen />;
   }
-
-  console.log('Renderizando navegación...');
   
   return (
     <>

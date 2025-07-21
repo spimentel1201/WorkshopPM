@@ -1,41 +1,22 @@
-import { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, ScrollView, Alert } from 'react-native';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Save, Package } from 'lucide-react-native';
+import { Package, Save } from 'lucide-react-native';
+import { useEffect, useState } from 'react';
+import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import colors from '@/constants/colors';
-import { Product } from '@/types/inventory';
-
-// Mock product data
-const mockProduct: Product = {
-  id: '1',
-  name: 'Pantalla LCD Samsung Galaxy S21',
-  description: 'Pantalla de repuesto original para Samsung Galaxy S21',
-  sku: 'SCR-SAM-S21',
-  price: 120,
-  stock: 15,
-  category: 'Pantallas',
-  brand: 'Samsung',
-  model: 'Galaxy S21',
-  imageUrl: 'https://placehold.co/100x100/0072ff/FFFFFF.png?text=LCD',
-  createdAt: '2025-06-01T10:00:00Z',
-  updatedAt: '2025-06-01T10:00:00Z',
-};
+import { useProductById } from '@/hooks/useProductById';
 
 interface EditProduct {
   name: string;
   description: string;
-  sku: string;
   price: string;
   stock: string;
   category: string;
-  brand: string;
-  model: string;
 }
 
 const categoryOptions = [
@@ -56,24 +37,16 @@ export default function EditProductScreen() {
   const [product, setProduct] = useState<EditProduct>({
     name: '',
     description: '',
-    sku: '',
     price: '',
     stock: '',
     category: '',
-    brand: '',
-    model: '',
   });
 
   const [errors, setErrors] = useState<Partial<EditProduct>>({});
 
   // Fetch product details
-  const { data: productData, isLoading } = useQuery({
-    queryKey: ['product', id],
-    queryFn: async () => {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      return mockProduct;
-    },
-  });
+  const { data: productData, isLoading, isError, error } = useProductById(Array.isArray(id) ? id[0] : id);
+
 
   // Initialize form with product data
   useEffect(() => {
@@ -81,12 +54,9 @@ export default function EditProductScreen() {
       setProduct({
         name: productData.name,
         description: productData.description,
-        sku: productData.sku,
         price: productData.price.toString(),
         stock: productData.stock.toString(),
         category: productData.category,
-        brand: productData.brand || '',
-        model: productData.model || '',
       });
     }
   }, [productData]);
@@ -127,10 +97,6 @@ export default function EditProductScreen() {
       newErrors.description = 'La descripción es requerida';
     }
 
-    if (!product.sku.trim()) {
-      newErrors.sku = 'El SKU es requerido';
-    }
-
     if (!product.price) {
       newErrors.price = 'El precio es requerido';
     } else if (isNaN(Number(product.price)) || Number(product.price) <= 0) {
@@ -145,10 +111,6 @@ export default function EditProductScreen() {
 
     if (!product.category) {
       newErrors.category = 'Seleccione una categoría';
-    }
-
-    if (!product.brand.trim()) {
-      newErrors.brand = 'La marca es requerida';
     }
 
     setErrors(newErrors);
@@ -227,33 +189,6 @@ export default function EditProductScreen() {
             onValueChange={(value) => setProduct(prev => ({ ...prev, category: value }))}
             options={categoryOptions}
             error={errors.category}
-          />
-        </Card>
-
-        <Card>
-          <Text style={styles.sectionTitle}>Identificación</Text>
-          
-          <Input
-            label="SKU (Código del Producto)"
-            placeholder="Ej: PAN-SAM-001"
-            value={product.sku}
-            onChangeText={(value) => setProduct(prev => ({ ...prev, sku: value }))}
-            error={errors.sku}
-          />
-
-          <Input
-            label="Marca"
-            placeholder="Ej: Samsung, HP, Apple"
-            value={product.brand}
-            onChangeText={(value) => setProduct(prev => ({ ...prev, brand: value }))}
-            error={errors.brand}
-          />
-          
-          <Input
-            label="Modelo (Opcional)"
-            placeholder="Ej: Galaxy S21, Pavilion"
-            value={product.model}
-            onChangeText={(value) => setProduct(prev => ({ ...prev, model: value }))}
           />
         </Card>
 

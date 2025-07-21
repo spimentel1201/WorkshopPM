@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { StyleSheet, Text, View, FlatList, TextInput, Alert, Pressable } from 'react-native';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { Search, Plus, Edit, Trash2, Users } from 'lucide-react-native';
 
@@ -8,55 +8,68 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/EmptyState';
 import colors from '@/constants/colors';
-import { User, UserRole } from '@/types/auth';
+import { User, UserProfile, UserRole } from '@/types/auth';
+import api from '@/src/lib/api';
 
-// Mock users data
-const mockUsers: User[] = [
-  {
-    id: '1',
-    name: 'Admin User',
-    email: 'admin@example.com',
-    role: UserRole.ADMIN,
-    createdAt: '2025-06-01T10:00:00Z',
-    updatedAt: '2025-06-01T10:00:00Z',
-  },
-  {
-    id: '2',
-    name: 'Tech User',
-    email: 'tech@example.com',
-    role: UserRole.TECHNICIAN,
-    createdAt: '2025-06-02T11:30:00Z',
-    updatedAt: '2025-06-02T11:30:00Z',
-  },
-  {
-    id: '3',
-    name: 'Juan Técnico',
-    email: 'juan@example.com',
-    role: UserRole.TECHNICIAN,
-    createdAt: '2025-06-03T09:15:00Z',
-    updatedAt: '2025-06-03T09:15:00Z',
-  },
-];
+interface ApiUser {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  role: UserRole;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Helper function to map API user to our User type
+const mapApiUser = (user: ApiUser): UserProfile => ({
+  id: user.id,
+  email: user.email,
+  role: user.role,
+  firstName: user.firstName,
+  lastName: user.lastName
+});
 
 export default function UsersScreen() {
   const [searchQuery, setSearchQuery] = useState('');
+  const queryClient = useQueryClient();
 
-  // Fetch users
-  const { data: users, isLoading } = useQuery({
+  // Fetch users from the backend
+  const { data: users = [], isLoading, error } = useQuery<ApiUser[]>({
     queryKey: ['users'],
     queryFn: async () => {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      return mockUsers;
+      const response = await api.get<ApiUser[]>('/users');
+      return response.data;
+    },
+  });
+
+  // Delete user mutation
+  const deleteUserMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      await api.delete(`/users/${userId}`);
+      return userId;
+    },
+    onSuccess: (deletedUserId) => {
+      // Invalidate and refetch users
+      queryClient.setQueryData<ApiUser[]>(['users'], (oldUsers = []) => 
+        oldUsers.filter(user => user.id !== deletedUserId)
+      );
+    },
+    onError: (error: any) => {
+      const errorMessage = error.response?.data?.message || 'No se pudo eliminar el usuario';
+      Alert.alert('Error', errorMessage);
     },
   });
 
   // Filter users based on search query
-  const filteredUsers = users?.filter(user => 
-    user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    user.role.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredUsers = users
+    .map(mapApiUser)
+    .filter(user => 
+      user.firstName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      user.lastName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      user.role.toLowerCase().includes(searchQuery.toLowerCase())
+    );
 
   const handleCreateUser = () => {
     router.push('/users/create');
@@ -77,24 +90,21 @@ export default function UsersScreen() {
         },
         { 
           text: "Eliminar", 
-          onPress: () => {
-            // Delete user logic would go here
-            console.log(`Deleting user ${userId}`);
-          },
+          onPress: () => deleteUserMutation.mutate(userId),
           style: "destructive"
         }
       ]
     );
   };
 
-  const renderUserItem = ({ item }: { item: User }) => (
+  const renderUserItem = ({ item }: { item: UserProfile }) => (
     <Card style={styles.userCard}>
       <View style={styles.userInfo}>
         <View style={styles.userAvatar}>
-          <Text style={styles.userInitial}>{item.name.charAt(0)}</Text>
+          <Text style={styles.userInitial}>{item.firstName.charAt(0)}</Text>
         </View>
         <View style={styles.userData}>
-          <Text style={styles.userName}>{item.name}</Text>
+          <Text style={styles.userName}>{item.firstName} {item.lastName}</Text>
           <Text style={styles.userEmail}>{item.email}</Text>
           <View style={[
             styles.roleBadge,
@@ -107,41 +117,52 @@ export default function UsersScreen() {
         </View>
       </View>
       <View style={styles.userActions}>
-        <Pressable onPress={() => handleEditUser(item.id)} style={styles.editButton}>
-          <Edit size={16} color={colors.primary[500]} />
-          <Text style={styles.editText}>Editar</Text>
-        </Pressable>
-        <Pressable onPress={() => handleDeleteUser(item.id, item.name)} style={styles.deleteButton}>
-          <Trash2 size={16} color={colors.error} />
-          <Text style={styles.deleteText}>Eliminar</Text>
-        </Pressable>
+        <Button
+          variant="ghost"
+          size="sm"
+          onPress={() => handleEditUser(item.id)}
+          leftIcon={<Edit size={16} color={colors.primary[500]} />}
+        >
+          Editar
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          onPress={() => handleDeleteUser(item.id, item.firstName)}
+          leftIcon={<Trash2 size={16} color={colors.danger[500]} />}
+          style={styles.deleteButton}
+        >
+          Eliminar
+        </Button>
       </View>
     </Card>
   );
 
-  const renderEmptyState = () => (
-    <EmptyState
-      icon={<Users size={48} color={colors.neutral[400]} />}
-      title="No hay usuarios"
-      description="Crea un nuevo usuario para comenzar a gestionar el acceso a la aplicación."
-      actionLabel="Crear Usuario"
-      onAction={handleCreateUser}
-    />
-  );
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text>Cargando usuarios...</Text>
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.errorContainer}>
+        <Text style={styles.errorText}>
+          Error al cargar los usuarios. Por favor, inténtalo de nuevo más tarde.
+        </Text>
+        <Button onPress={() => queryClient.invalidateQueries({ queryKey: ['users'] })}>
+          Reintentar
+        </Button>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <View style={styles.searchContainer}>
-          <Search size={20} color={colors.neutral[500]} style={styles.searchIcon} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Buscar usuarios..."
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-        </View>
-        
+        <Text style={styles.title}>Usuarios</Text>
         <Button
           onPress={handleCreateUser}
           leftIcon={<Plus size={18} color={colors.white} />}
@@ -150,13 +171,32 @@ export default function UsersScreen() {
         </Button>
       </View>
 
-      <FlatList
-        data={filteredUsers}
-        renderItem={renderUserItem}
-        keyExtractor={item => item.id}
-        contentContainerStyle={styles.listContainer}
-        ListEmptyComponent={renderEmptyState}
-      />
+      <View style={styles.searchContainer}>
+        <Search size={20} color={colors.neutral[500]} style={styles.searchIcon} />
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Buscar usuarios..."
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          placeholderTextColor={colors.neutral[500]}
+        />
+      </View>
+
+      {filteredUsers.length === 0 ? (
+        <EmptyState
+          icon={<Users size={48} color={colors.neutral[400]} />}
+          title="No se encontraron usuarios"
+          description={searchQuery ? 'Intenta con otro término de búsqueda' : 'No hay usuarios registrados'}
+        />
+      ) : (
+        <FlatList
+          data={filteredUsers}
+          keyExtractor={(item) => item.id}
+          renderItem={renderUserItem}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+        />
+      )}
     </View>
   );
 }
@@ -167,74 +207,96 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
     padding: 16,
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  errorText: {
+    color: colors.danger[500],
+    marginBottom: 16,
+    textAlign: 'center',
+  },
   header: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 16,
   },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: colors.text.primary,
+  },
   searchContainer: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.white,
     borderRadius: 8,
+    paddingHorizontal: 12,
+    marginBottom: 16,
     borderWidth: 1,
-    borderColor: colors.neutral[300],
-    marginRight: 8,
-    height: 40,
+    borderColor: colors.border,
   },
   searchIcon: {
-    marginLeft: 12,
+    marginRight: 8,
   },
   searchInput: {
     flex: 1,
-    height: '100%',
-    paddingHorizontal: 8,
-    fontSize: 16,
+    height: 44,
+    color: colors.text.primary,
   },
-  listContainer: {
-    flexGrow: 1,
+  listContent: {
+    paddingBottom: 24,
   },
   userCard: {
     marginBottom: 12,
+    padding: 16,
   },
   userInfo: {
     flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 12,
   },
   userAvatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: colors.primary[500],
-    alignItems: 'center',
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: colors.primary[100],
     justifyContent: 'center',
-    marginRight: 16,
+    alignItems: 'center',
+    marginRight: 12,
   },
   userInitial: {
-    fontSize: 20,
-    fontWeight: 'bold' as const,
-    color: colors.white,
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: colors.primary[600],
   },
   userData: {
     flex: 1,
   },
   userName: {
     fontSize: 16,
-    fontWeight: 'bold' as const,
-    color: colors.neutral[900],
-    marginBottom: 4,
+    fontWeight: '600',
+    color: colors.text.primary,
+    marginBottom: 2,
   },
   userEmail: {
     fontSize: 14,
-    color: colors.neutral[600],
-    marginBottom: 8,
+    color: colors.text.secondary,
+    marginBottom: 4,
   },
   roleBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 16,
     alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
   },
   adminBadge: {
     backgroundColor: colors.primary[100],
@@ -244,37 +306,17 @@ const styles = StyleSheet.create({
   },
   roleText: {
     fontSize: 12,
-    fontWeight: '500' as const,
-    color: colors.neutral[800],
+    fontWeight: '500',
   },
   userActions: {
     flexDirection: 'row',
-  },
-  editButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 8,
-    borderWidth: 1,
-    borderColor: colors.primary[500],
-    borderRadius: 6,
-    marginRight: 8,
-  },
-  editText: {
-    color: colors.primary[500],
-    marginLeft: 4,
-    fontSize: 14,
+    justifyContent: 'flex-end',
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingTop: 12,
+    marginTop: 12,
   },
   deleteButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 8,
-    borderWidth: 1,
-    borderColor: colors.error,
-    borderRadius: 6,
-  },
-  deleteText: {
-    color: colors.error,
-    marginLeft: 4,
-    fontSize: 14,
+    marginLeft: 8,
   },
 });

@@ -9,62 +9,62 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import colors from '@/constants/colors';
-import { User as UserType, UserRole } from '@/types/auth';
-
-// Mock user data
-const mockUser: UserType = {
-  id: '2',
-  name: 'Tech User',
-  email: 'tech@example.com',
-  role: UserRole.TECHNICIAN,
-  createdAt: '2025-06-02T11:30:00Z',
-  updatedAt: '2025-06-02T11:30:00Z',
-};
+import { UserRole, UserProfile } from '@/types/auth';
+import { useAuth } from '@/hooks/useAuth';
+import api from '@/src/lib/api';
 
 interface EditUser {
-  name: string;
+  firstName: string;
+  lastName: string;
   email: string;
   role: UserRole;
   changePassword: boolean;
+  currentPassword: string;
   newPassword: string;
   confirmPassword: string;
 }
 
 const roleOptions = [
-  { value: UserRole.ADMIN, label: 'Administrador' },
-  { value: UserRole.TECHNICIAN, label: 'Técnico' },
+  { value: UserRole.ADMIN.toString(), label: 'Administrador' },
+  { value: UserRole.TECHNICIAN.toString(), label: 'Técnico' },
 ];
 
 export default function EditUserScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const { user: currentUser, updateUser: updateAuthUser } = useAuth();
   const queryClient = useQueryClient();
   
-  const [user, setUser] = useState<EditUser>({
-    name: '',
+  const [formData, setFormData] = useState<EditUser>({
+    firstName: '',
+    lastName: '',
     email: '',
     role: UserRole.TECHNICIAN,
     changePassword: false,
+    currentPassword: '',
     newPassword: '',
     confirmPassword: '',
   });
 
   const [errors, setErrors] = useState<Partial<EditUser>>({});
+  const isCurrentUser = currentUser?.id === id;
 
   // Fetch user details
-  const { data: userData, isLoading } = useQuery({
+  const { data: userData, isLoading } = useQuery<UserProfile>({
     queryKey: ['user', id],
     queryFn: async () => {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      return mockUser;
+      const response = await api.get<UserProfile>('/auth/profile');
+      return response.data;
     },
+    enabled: !!id,
   });
 
   // Initialize form with user data
   useEffect(() => {
     if (userData) {
-      setUser(prev => ({
+      setFormData(prev => ({
         ...prev,
-        name: userData.name,
+        firstName: userData.firstName,
+        lastName: userData.lastName || '',
         email: userData.email,
         role: userData.role,
       }));
@@ -73,47 +73,71 @@ export default function EditUserScreen() {
 
   // Update user mutation
   const updateUserMutation = useMutation({
-    mutationFn: async (updatedUser: EditUser) => {
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      return { ...userData!, ...updatedUser };
+    mutationFn: async (updatedUser: Partial<EditUser>) => {
+      const updateData: any = {
+        firstName: updatedUser.firstName,
+        lastName: updatedUser.lastName,
+        email: updatedUser.email,
+        role: updatedUser.role as UserRole,
+      };
+
+      // Solo incluir campos de contraseña si se está cambiando
+      if (updatedUser.changePassword) {
+        updateData.currentPassword = updatedUser.currentPassword;
+        updateData.newPassword = updatedUser.newPassword;
+      }
+
+      const response = await api.patch<UserProfile>('/users/' + id, updateData);
+      return response.data;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['users'] });
+    onSuccess: (updatedUser) => {
+      // Actualizar el usuario en el contexto de autenticación
+      updateAuthUser(updatedUser);
+      
+      // Invalidate queries
       queryClient.invalidateQueries({ queryKey: ['user', id] });
+      
       Alert.alert(
         'Éxito',
-        'Usuario actualizado exitosamente',
+        'Perfil actualizado exitosamente',
         [{ text: 'OK', onPress: () => router.back() }]
       );
     },
-    onError: () => {
-      Alert.alert('Error', 'No se pudo actualizar el usuario');
+    onError: (error: any) => {
+      const errorMessage = error.response?.data?.message || 'No se pudo actualizar el perfil';
+      Alert.alert('Error', errorMessage);
     },
   });
 
   const validateForm = (): boolean => {
     const newErrors: Partial<EditUser> = {};
 
-    if (!user.name.trim()) {
-      newErrors.name = 'El nombre es requerido';
+    if (!formData.firstName.trim()) {
+      newErrors.firstName = 'El nombre es requerido';
     }
 
-    if (!user.email.trim()) {
+    if (!formData.lastName.trim()) {
+      newErrors.lastName = 'El apellido es requerido';
+    }
+
+    if (!formData.email.trim()) {
       newErrors.email = 'El correo electrónico es requerido';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(user.email)) {
-      newErrors.email = 'Ingrese un correo electrónico válido';
+    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      newErrors.email = 'Ingresa un correo electrónico válido';
     }
 
-    if (user.changePassword) {
-      if (!user.newPassword) {
+    if (formData.changePassword) {
+      if (!formData.currentPassword) {
+        newErrors.currentPassword = 'La contraseña actual es requerida';
+      }
+      
+      if (!formData.newPassword) {
         newErrors.newPassword = 'La nueva contraseña es requerida';
-      } else if (user.newPassword.length < 6) {
+      } else if (formData.newPassword.length < 6) {
         newErrors.newPassword = 'La contraseña debe tener al menos 6 caracteres';
       }
-
-      if (!user.confirmPassword) {
-        newErrors.confirmPassword = 'Confirme la nueva contraseña';
-      } else if (user.newPassword !== user.confirmPassword) {
+      
+      if (formData.newPassword !== formData.confirmPassword) {
         newErrors.confirmPassword = 'Las contraseñas no coinciden';
       }
     }
@@ -122,138 +146,158 @@ export default function EditUserScreen() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = async () => {
-    if (!validateForm()) return;
-    updateUserMutation.mutate(user);
+  const handleSubmit = () => {
+    if (validateForm()) {
+      updateUserMutation.mutate(formData);
+    }
+  };
+
+  const handleChange = (field: keyof EditUser, value: string | boolean | UserRole) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value,
+    }));
+    
+    // Limpiar errores al editar
+    if (errors[field as keyof typeof errors]) {
+      setErrors(prev => ({
+        ...prev,
+        [field]: undefined,
+      }));
+    }
   };
 
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <Text>Cargando usuario...</Text>
-      </View>
-    );
-  }
-
-  if (!userData) {
-    return (
-      <View style={styles.errorContainer}>
-        <Text>Usuario no encontrado</Text>
-        <Button onPress={() => router.back()}>Volver</Button>
+        <Text>Cargando perfil...</Text>
       </View>
     );
   }
 
   return (
-    <>
-      <Stack.Screen 
-        options={{ 
-          title: 'Editar Usuario',
-          headerStyle: { backgroundColor: colors.white },
-          headerTitleStyle: { color: colors.neutral[900] }
-        }} 
+    <ScrollView style={styles.container}>
+      <Stack.Screen
+        options={{
+          title: 'Editar Perfil',
+          headerRight: () => (
+            <Button
+              onPress={handleSubmit}
+              variant="ghost"
+              leftIcon={<Save size={20} color={colors.primary[500]} />}
+              loading={updateUserMutation.isPending}
+            >
+              Guardar
+            </Button>
+          ),
+        }}
       />
-      <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
-        <Card>
-          <View style={styles.header}>
-            <View style={styles.iconContainer}>
-              <User size={32} color={colors.primary[500]} />
-            </View>
-            <Text style={styles.title}>Editar Usuario</Text>
-            <Text style={styles.subtitle}>
-              Modifique la información del usuario
-            </Text>
-          </View>
-        </Card>
 
-        <Card>
-          <Text style={styles.sectionTitle}>Información Personal</Text>
-          
+      <Card style={styles.card}>
+        <Text style={styles.sectionTitle}>Información Personal</Text>
+        
+        <View style={styles.formGroup}>
+          <Text style={styles.label}>Nombre</Text>
           <Input
-            label="Nombre Completo"
-            placeholder="Ingrese el nombre completo"
-            value={user.name}
-            onChangeText={(value) => setUser(prev => ({ ...prev, name: value }))}
-            error={errors.name}
+            value={formData.firstName}
+            onChangeText={(text) => handleChange('firstName', text)}
+            placeholder="Nombre"
+            error={errors.firstName}
           />
-          
+        </View>
+
+        <View style={styles.formGroup}>
+          <Text style={styles.label}>Apellido</Text>
           <Input
-            label="Correo Electrónico"
+            value={formData.lastName}
+            onChangeText={(text) => handleChange('lastName', text)}
+            placeholder="Apellido"
+            error={errors.lastName}
+          />
+        </View>
+
+        <View style={styles.formGroup}>
+          <Text style={styles.label}>Correo Electrónico</Text>
+          <Input
+            value={formData.email}
+            onChangeText={(text) => handleChange('email', text)}
             placeholder="correo@ejemplo.com"
-            value={user.email}
-            onChangeText={(value) => setUser(prev => ({ ...prev, email: value }))}
             keyboardType="email-address"
             autoCapitalize="none"
             error={errors.email}
           />
-        </Card>
+        </View>
 
-        <Card>
-          <Text style={styles.sectionTitle}>Permisos</Text>
-          
-          <Select
-            label="Rol del Usuario"
-            placeholder="Seleccione el rol"
-            value={user.role}
-            onValueChange={(value) => setUser(prev => ({ ...prev, role: value as UserRole }))}
-            options={roleOptions}
-          />
-        </Card>
-
-        <Card>
-          <Text style={styles.sectionTitle}>Cambiar Contraseña</Text>
-          
-          <View style={styles.checkboxContainer}>
-            <Button
-              onPress={() => setUser(prev => ({ 
-                ...prev, 
-                changePassword: !prev.changePassword,
-                newPassword: '',
-                confirmPassword: ''
-              }))}
-              variant={user.changePassword ? 'primary' : 'outline'}
-              size="sm"
-            >
-              {user.changePassword ? 'Cancelar cambio' : 'Cambiar contraseña'}
-            </Button>
+        {!isCurrentUser && (
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Rol</Text>
+            <Select
+              value={formData.role.toString()}
+              onValueChange={(value) => handleChange('role', value as UserRole)}
+              options={roleOptions}
+            />
           </View>
+        )}
 
-          {user.changePassword && (
-            <>
+        <View style={styles.sectionDivider}>
+          <Text style={styles.sectionTitle}>Cambiar Contraseña</Text>
+          <Button
+            variant="ghost"
+            onPress={() => handleChange('changePassword', !formData.changePassword)}
+          >
+            {formData.changePassword ? 'Ocultar' : 'Cambiar Contraseña'}
+          </Button>
+        </View>
+
+        {formData.changePassword && (
+          <>
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Contraseña Actual</Text>
               <Input
-                label="Nueva Contraseña"
-                placeholder="Ingrese la nueva contraseña"
-                value={user.newPassword}
-                onChangeText={(value) => setUser(prev => ({ ...prev, newPassword: value }))}
+                value={formData.currentPassword}
+                onChangeText={(text) => handleChange('currentPassword', text)}
+                placeholder="••••••••"
+                secureTextEntry
+                error={errors.currentPassword}
+              />
+            </View>
+
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Nueva Contraseña</Text>
+              <Input
+                value={formData.newPassword}
+                onChangeText={(text) => handleChange('newPassword', text)}
+                placeholder="••••••••"
                 secureTextEntry
                 error={errors.newPassword}
               />
-              
+            </View>
+
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Confirmar Nueva Contraseña</Text>
               <Input
-                label="Confirmar Nueva Contraseña"
-                placeholder="Confirme la nueva contraseña"
-                value={user.confirmPassword}
-                onChangeText={(value) => setUser(prev => ({ ...prev, confirmPassword: value }))}
+                value={formData.confirmPassword}
+                onChangeText={(text) => handleChange('confirmPassword', text)}
+                placeholder="••••••••"
                 secureTextEntry
                 error={errors.confirmPassword}
               />
-            </>
-          )}
-        </Card>
+            </View>
+          </>
+        )}
 
-        <View style={styles.submitContainer}>
+        <View style={styles.buttonContainer}>
           <Button
             onPress={handleSubmit}
             loading={updateUserMutation.isPending}
             disabled={updateUserMutation.isPending}
-            fullWidth
-            leftIcon={<Save size={18} color={colors.white} />}
+            leftIcon={<Save size={18} />}
           >
-            Actualizar Usuario
+            Guardar Cambios
           </Button>
         </View>
-      </ScrollView>
-    </>
+      </Card>
+    </ScrollView>
   );
 }
 
@@ -261,57 +305,39 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
-  },
-  contentContainer: {
     padding: 16,
-    paddingBottom: 32,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+  card: {
     padding: 16,
-  },
-  header: {
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  iconContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: colors.primary[100],
-    alignItems: 'center',
-    justifyContent: 'center',
     marginBottom: 16,
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: 'bold' as const,
-    color: colors.neutral[900],
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: colors.neutral[600],
-    textAlign: 'center',
-    lineHeight: 20,
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: 'bold' as const,
-    color: colors.neutral[900],
+    fontWeight: '600',
+    marginBottom: 16,
+    color: colors.text.primary,
+  },
+  formGroup: {
     marginBottom: 16,
   },
-  checkboxContainer: {
-    marginBottom: 16,
+  label: {
+    fontSize: 14,
+    marginBottom: 8,
+    color: colors.text.secondary,
   },
-  submitContainer: {
+  sectionDivider: {
+    marginTop: 24,
+    marginBottom: 16,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingTop: 16,
+  },
+  buttonContainer: {
     marginTop: 24,
   },
 });

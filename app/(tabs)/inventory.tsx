@@ -1,430 +1,338 @@
-import { useState } from 'react';
-import { StyleSheet, Text, View, FlatList, TextInput, Pressable, Dimensions } from 'react-native';
-import { useQuery } from '@tanstack/react-query';
-import { router } from 'expo-router';
-import { Search, Plus, Package, Edit, Trash2, AlertTriangle } from 'lucide-react-native';
-
-import { Card } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
-import { Badge } from '@/components/ui/Badge';
-import { EmptyState } from '@/components/EmptyState';
+import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import type { ListRenderItem } from 'react-native';
+import { View, StyleSheet, FlatList, RefreshControl, Alert, Text } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useTheme } from '@/hooks/useTheme';
-import { Product } from '@/types/inventory';
 import { useAuth } from '@/hooks/useAuth';
-import { UserRole } from '@/types/auth';
-import colors from '@/constants/colors';
+import { Product } from '@/types/inventory';
+import { useProducts } from '@/hooks/useProducts';
+import { Button } from '@/components/ui/Button';
+import { MaterialIcons } from '@expo/vector-icons';
+import SearchBar from '@/components/ui/SearchBar';
+import {EmptyState} from '@/components/EmptyState';
+import ErrorState from '@/components/ErrorState';
+import LoadingState from '@/components/LoadingState';
+import {Card} from '@/components/ui/Card';
+import { useQueryClient } from '@tanstack/react-query';
 
-const { width } = Dimensions.get('window');
-const isTablet = width > 768;
-const isLargeScreen = width > 1024;
-const numColumns = isLargeScreen ? 3 : (isTablet ? 2 : 1);
-const ITEM_MARGIN = 8;
-const CONTAINER_PADDING = 16;
-const ITEM_WIDTH = (width - (CONTAINER_PADDING * 2) - (ITEM_MARGIN * (numColumns - 1))) / numColumns;
+  // Eliminar el useMemo para getDeleteLabel y definirlo como una función normal
+  // fuera del componente para evitar recreaciones
 
-const mockProducts: Product[] = [
-  {
-    id: '1',
-    name: 'Pantalla LCD Samsung Galaxy S21',
-    description: 'Pantalla de repuesto original para Samsung Galaxy S21',
-    sku: 'SCR-SAM-S21',
-    price: 120,
-    stock: 15,
-    category: 'Pantallas',
-    brand: 'Samsung',
-    model: 'Galaxy S21',
-    imageUrl: 'https://placehold.co/100x100/0072ff/FFFFFF.png?text=LCD',
-    createdAt: '2025-06-01T10:00:00Z',
-    updatedAt: '2025-06-01T10:00:00Z',
-  },
-  {
-    id: '2',
-    name: 'Batería HP Pavilion',
-    description: 'Batería de repuesto para laptops HP Pavilion',
-    sku: 'BAT-HP-PAV',
-    price: 85,
-    stock: 8,
-    category: 'Baterías',
-    brand: 'HP',
-    model: 'Pavilion',
-    imageUrl: 'https://placehold.co/100x100/0072ff/FFFFFF.png?text=BAT',
-    createdAt: '2025-06-02T11:30:00Z',
-    updatedAt: '2025-06-02T11:30:00Z',
-  },
-  {
-    id: '3',
-    name: 'Placa madre ASUS ROG',
-    description: 'Placa madre para computadoras gaming ASUS ROG',
-    sku: 'MB-ASUS-ROG',
-    price: 250,
-    stock: 5,
-    category: 'Placas madre',
-    brand: 'ASUS',
-    model: 'ROG',
-    imageUrl: 'https://placehold.co/100x100/0072ff/FFFFFF.png?text=MB',
-    createdAt: '2025-06-03T09:15:00Z',
-    updatedAt: '2025-06-03T09:15:00Z',
-  },
-  {
-    id: '4',
-    name: 'Cargador MacBook Pro',
-    description: 'Cargador original para MacBook Pro',
-    sku: 'CHG-MAC-PRO',
-    price: 75,
-    stock: 12,
-    category: 'Cargadores',
-    brand: 'Apple',
-    model: 'MacBook Pro',
-    imageUrl: 'https://placehold.co/100x100/0072ff/FFFFFF.png?text=CHG',
-    createdAt: '2025-06-04T14:45:00Z',
-    updatedAt: '2025-06-04T14:45:00Z',
-  },
-  {
-    id: '5',
-    name: 'Memoria RAM DDR4 8GB',
-    description: 'Memoria RAM DDR4 8GB 2400MHz',
-    sku: 'RAM-DDR4-8GB',
-    price: 45,
-    stock: 2,
-    category: 'Memoria',
-    brand: 'Kingston',
-    model: 'ValueRAM',
-    imageUrl: 'https://placehold.co/100x100/0072ff/FFFFFF.png?text=RAM',
-    createdAt: '2025-06-05T16:10:00Z',
-    updatedAt: '2025-06-05T16:10:00Z',
-  },
-  {
-    id: '6',
-    name: 'Disco SSD 256GB',
-    description: 'Disco de estado sólido 256GB SATA',
-    sku: 'SSD-256GB',
-    price: 65,
-    stock: 0,
-    category: 'Almacenamiento',
-    brand: 'Crucial',
-    model: 'MX500',
-    imageUrl: 'https://placehold.co/100x100/0072ff/FFFFFF.png?text=SSD',
-    createdAt: '2025-06-06T12:25:00Z',
-    updatedAt: '2025-06-06T12:25:00Z',
-  },
-];
+  // Antes de la definición del componente InventoryScreen
+  const getDeleteLabel = (name: string) => `Eliminar producto: ${name}`;
 
-export default function InventoryScreen() {
-  const { user } = useAuth();
-  const { theme } = useTheme();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string>('');
-
-  // Fetch products
-  const { data: products, isLoading } = useQuery({
-    queryKey: ['products'],
-    queryFn: async () => {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      return mockProducts;
-    },
-  });
-
-  // Get unique categories
-  const categories = Array.from(new Set(products?.map(p => p.category) || []));
-
-  // Filter products
-  const filteredProducts = products?.filter(product => {
-    const matchesSearch = 
-      product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      product.sku.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      product.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (product.brand && product.brand.toLowerCase().includes(searchQuery.toLowerCase()));
+  export default function InventoryScreen() {
+    // Hooks at the top level - no conditions
+    const router = useRouter();
+    const { user } = useAuth();
+    const { theme, isDark } = useTheme();
+    const queryClient = useQueryClient();
+    const searchBarRef = useRef<any>(null);
     
-    const matchesCategory = selectedCategory ? product.category === selectedCategory : true;
-    
-    return matchesSearch && matchesCategory;
-  });
-
-  const handleCreateProduct = () => {
-    router.push('/inventory/create');
-  };
-
-  const handleProductPress = (productId: string) => {
-    router.push(`/inventory/${productId}`);
-  };
-
-  const handleEditProduct = (productId: string) => {
-    router.push(`/inventory/${productId}/edit`);
-  };
-
-  const getStockStatus = (stock: number) => {
-    if (stock === 0) return { variant: 'error' as const, text: 'Sin stock' };
-    if (stock <= 5) return { variant: 'warning' as const, text: 'Stock bajo' };
-    return { variant: 'success' as const, text: 'En stock' };
-  };
-
-  const renderProductItem = ({ item }: { item: Product }) => {
-    const stockStatus = getStockStatus(item.stock);
-    
-    return (
-      <Pressable onPress={() => handleProductPress(item.id)} style={styles.productCard}>
+    // State for search and filter
+    const [searchQuery, setSearchQuery] = useState('');
+    const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+    const [refreshing, setRefreshing] = useState(false);
+    const [isSearching, setIsSearching] = useState(false);
+  
+    // Initialize all queries at the top level
+    const { 
+      getProducts: productsQuery, 
+      searchProducts,
+      getCategories, 
+      deleteProduct 
+    } = useProducts({ query: searchQuery });
+  
+    // Handle search query changes
+    useEffect(() => {
+      if (searchQuery) {
+        setIsSearching(true);
+        const timer = setTimeout(() => {
+          searchProducts.refetch().finally(() => setIsSearching(false));
+        }, 500);
+        return () => clearTimeout(timer);
+      } else {
+        setIsSearching(false);
+      }
+    }, [searchQuery, searchProducts]);
+  
+    // Handle pull-to-refresh
+    const onRefresh = useCallback(async () => {
+      try {
+        setRefreshing(true);
+        const promises = [
+          productsQuery.refetch(),
+          getCategories.refetch()
+        ];
+        
+        if (searchQuery) {
+          promises.push(searchProducts.refetch());
+        }
+        
+        await Promise.allSettled(promises);
+      } finally {
+        setRefreshing(false);
+      }
+    }, [productsQuery, getCategories, searchProducts, searchQuery]);
+  
+    // Handle product deletion
+    const handleDeleteProduct = useCallback((productId: string) => {
+      Alert.alert(
+        'Eliminar producto',
+        '¿Estás seguro de que quieres eliminar este producto?',
+        [
+          {
+            text: 'Cancelar',
+            style: 'cancel',
+          },
+          {
+            text: 'Eliminar',
+            style: 'destructive',
+            onPress: () => {
+              deleteProduct.mutate(productId, {
+                onSuccess: () => {
+                  queryClient.invalidateQueries({ queryKey: ['products'] });
+                },
+                onError: () => {
+                  Alert.alert('Error', 'No se pudo eliminar el producto');
+                }
+              });
+            },
+          },
+        ]
+      );
+    }, [deleteProduct, queryClient]);
+  
+    // Handle edit navigation
+    const handleEditProduct = useCallback((productId: string) => {
+      router.push(`/inventory/${productId}/edit`);
+    }, [router]);
+  
+    // Filter products by category
+    const filteredProducts = useMemo(() => {
+      if (searchQuery && searchProducts.data) {
+        return searchProducts.data;
+      }
+      return (productsQuery.data || []).filter(
+        (product: Product) => !selectedCategory || product.category === selectedCategory
+      );
+    }, [searchQuery, searchProducts.data, productsQuery.data, selectedCategory]);
+  
+    // Loading and error states
+    const isLoading = productsQuery.isLoading || getCategories.isLoading || isSearching;
+    const error = productsQuery.error || getCategories.error || searchProducts.error;
+  
+    // Render product item
+    const renderProductItem: ListRenderItem<Product> = useCallback(({ item }) => (
+      <Card 
+        style={styles.productCard}
+        accessibilityLabel={`Producto: ${item.name}, Precio: S/ ${item.price.toFixed(2)}, Stock: ${item.stock}`}
+      >
         <View style={styles.productHeader}>
-          <View style={styles.productInfo}>
-            <Text style={styles.productName} numberOfLines={2}>{item.name}</Text>
-            <Text style={styles.productSku}>SKU: {item.sku}</Text>
-            <Text style={styles.productCategory}>{item.category}</Text>
-          </View>
-          <Badge variant={stockStatus.variant} text={stockStatus.text} />
+          <Text 
+            style={[
+              styles.productName,
+              isDark && styles.productNameDark
+            ]} 
+            numberOfLines={1} 
+            ellipsizeMode="tail"
+            testID="product-name"
+            accessibilityRole="text"
+            accessibilityLabel={`Producto: ${item.name}`}
+          >
+            {item.name}
+          </Text>
+          <Text 
+            style={styles.productPrice}
+            testID="product-price"
+          >
+            S/ {Number(item.price).toFixed(2)}
+          </Text>
         </View>
         
-        <View style={styles.productDetails}>
-          <Text style={styles.productBrand}>
-            {item.brand} {item.model && `- ${item.model}`}
+        {item.category && (
+          <Text 
+            style={styles.productCategory} 
+            numberOfLines={1}
+            testID="product-category"
+          >
+            {item.category}
           </Text>
-          <Text style={styles.productDescription} numberOfLines={2}>
-            {item.description}
-          </Text>
-        </View>
+        )}
         
         <View style={styles.productFooter}>
-          <View style={styles.priceSection}>
-            <Text style={styles.productPrice}>${item.price.toFixed(2)}</Text>
-            <Text style={styles.stockText}>Stock: {item.stock}</Text>
-          </View>
+          <Text 
+            style={[
+              styles.productStock, 
+              { color: item.stock > 0 ? '#4CAF50' : '#F44336' }
+            ]}
+            accessibilityLabel={`${item.stock} unidades en stock`}
+            testID="product-stock"
+          >
+            {item.stock} en stock
+          </Text>
           
-          {user?.role === UserRole.ADMIN && (
-            <View style={styles.productActions}>
-              <Pressable
+          {user?.role === 'ADMIN' && (
+            <View 
+              style={styles.productActions} 
+              accessibilityElementsHidden={user?.role !== 'ADMIN'}
+              importantForAccessibility={user?.role === 'ADMIN' ? 'yes' : 'no-hide-descendants'}
+            >
+              <Button 
+                variant="ghost" 
+                size="sm"
                 onPress={() => handleEditProduct(item.id)}
-                style={styles.actionButton}
+                accessibilityLabel={`Editar ${item.name}`}
               >
-                <Edit size={16} color={colors.primary[500]} />
-              </Pressable>
+                <MaterialIcons name="edit" size={20} color="#007AFF" />
+              </Button>
+              <Button 
+                variant="ghost"
+                size="sm"
+                onPress={() => handleDeleteProduct(item.id)}
+                accessibilityLabel={getDeleteLabel(item.name)}
+              >
+                <MaterialIcons name="delete" size={20} color="#FF3B30" />
+              </Button>
             </View>
           )}
         </View>
-      </Pressable>
-    );
-  };
+      </Card>
+    ), [handleDeleteProduct, handleEditProduct, isDark, user?.role]); // Eliminar getDeleteLabel de las dependencias
 
-  const renderCategoryFilter = () => (
-    <View style={styles.categoryFilter}>
-      <Pressable
-        onPress={() => setSelectedCategory('')}
-        style={[
-          styles.categoryButton,
-          !selectedCategory && styles.categoryButtonActive
-        ]}
-      >
-        <Text style={[
-          styles.categoryButtonText,
-          !selectedCategory && styles.categoryButtonTextActive
-        ]}>
-          Todas
-        </Text>
-      </Pressable>
-      
-      {categories.map(category => (
-        <Pressable
-          key={category}
-          onPress={() => setSelectedCategory(category)}
-          style={[
-            styles.categoryButton,
-            selectedCategory === category && styles.categoryButtonActive
-          ]}
-        >
-          <Text style={[
-            styles.categoryButtonText,
-            selectedCategory === category && styles.categoryButtonTextActive
-          ]}>
-            {category}
-          </Text>
-        </Pressable>
-      ))}
-    </View>
-  );
-
-  const renderEmptyState = () => (
-    <EmptyState
-      icon={<Package size={48} color={colors.neutral[400]} />}
-      title="No se encontraron productos"
-      description="Intenta con otros términos de búsqueda o crea un nuevo producto"
-    />
-  );
-
-  return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <View style={styles.header}>
-        <View style={[styles.searchContainer, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <Search size={20} color={theme.text.tertiary} style={styles.searchIcon} />
-          <TextInput
-            style={[styles.searchInput, { color: theme.text.primary }]}
+    // Early returns for loading and error states
+    if (isLoading && !refreshing) {
+      return <LoadingState message="Cargando productos..." />;
+    }
+  
+    if (error) {
+      return (
+        <ErrorState 
+          message="Error al cargar los productos" 
+          onRetry={() => {
+            productsQuery.refetch();
+            getCategories.refetch();
+            if (searchQuery) {
+              searchProducts.refetch();
+            }
+          }} 
+        />
+      );
+    }
+  
+    return (
+      <View style={[styles.container, { backgroundColor: isDark ? '#121212' : '#f5f5f5' }]}>
+        <View style={styles.header}>
+          <SearchBar
             placeholder="Buscar productos..."
-            placeholderTextColor={theme.text.tertiary}
             value={searchQuery}
             onChangeText={setSearchQuery}
+            style={styles.searchBar}
           />
+          
+          {user?.role === 'ADMIN' && (
+            <Button 
+              onPress={() => router.push('/inventory/new')}
+              style={styles.addButton}
+            >
+              <MaterialIcons name="add" size={24} color="white" />
+            </Button>
+          )}
         </View>
-        
-        {user?.role === UserRole.ADMIN && (
-          <Button
-            onPress={handleCreateProduct}
-            leftIcon={<Plus size={18} color={theme.white} />}
-            size={isTablet ? "md" : "sm"}
-          >
-            {isTablet ? "Nuevo Producto" : "Nuevo"}
-          </Button>
-        )}
+  
+        <FlatList
+          data={filteredProducts}
+          renderItem={renderProductItem}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.listContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={['#007AFF']}
+              tintColor="#007AFF"
+            />
+          }
+          ListEmptyComponent={
+            <EmptyState 
+              title="No hay productos"
+              description={searchQuery
+                ? "No se encontraron productos que coincidan con tu búsqueda."
+                : "No hay productos disponibles. Agrega uno nuevo para comenzar."} icon={undefined} />
+          }
+          ItemSeparatorComponent={() => <View style={styles.separator} />}
+        />
       </View>
-
-      {renderCategoryFilter()}
-
-      <FlatList
-        data={filteredProducts}
-        keyExtractor={item => item.id}
-        renderItem={renderProductItem}
-        contentContainerStyle={styles.listContainer}
-        numColumns={numColumns}
-        {...(numColumns > 1 && { columnWrapperStyle: styles.row })}
-        ListEmptyComponent={renderEmptyState}
-        refreshing={isLoading}
-        key={numColumns}
-        showsVerticalScrollIndicator={false}
-      />
-    </View>
-  );
-}
+    );
+  }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: CONTAINER_PADDING,
-    backgroundColor: colors.background,
+    padding: 16,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 16,
   },
-  searchContainer: {
+  searchBar: {
     flex: 1,
-    flexDirection: 'row',
+    marginRight: 12,
+  },
+  addButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: 8,
-    borderWidth: 1,
-    marginRight: 8,
-    height: 40,
   },
-  searchIcon: {
-    marginLeft: 12,
+  listContent: {
+    paddingBottom: 24,
   },
-  searchInput: {
-    flex: 1,
-    height: '100%',
-    paddingHorizontal: 8,
-    fontSize: 16,
-  },
-  categoryFilter: {
-    flexDirection: 'row',
-    marginBottom: 16,
-    flexWrap: 'wrap',
-  },
-  categoryButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    backgroundColor: colors.neutral[100],
-    marginRight: 8,
-    marginBottom: 8,
-  },
-  categoryButtonActive: {
-    backgroundColor: colors.primary[500],
-  },
-  categoryButtonText: {
-    fontSize: 14,
-    color: colors.neutral[700],
-  },
-  categoryButtonTextActive: {
-    color: colors.white,
-    fontWeight: '500' as const,
-  },
-  listContainer: {
-    paddingBottom: 16,
-    flexGrow: 1,
-  },
-  row: {
-    justifyContent: 'space-between',
-    marginHorizontal: -ITEM_MARGIN / 2,
+  separator: {
+    height: 12,
   },
   productCard: {
-    width: numColumns === 1 ? '100%' : ITEM_WIDTH - ITEM_MARGIN,
-    margin: ITEM_MARGIN / 2,
-    padding: 12,
+    padding: 16,
     borderRadius: 8,
-    backgroundColor: colors.white,
-    shadowColor: colors.black,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
   },
   productHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     marginBottom: 8,
   },
-  productInfo: {
+  productName: {
     flex: 1,
+    fontSize: 16,
+    fontWeight: '500',
     marginRight: 8,
   },
-  productName: {
-    fontSize: 16,
-    fontWeight: 'bold' as const,
-    color: colors.neutral[900],
-    marginBottom: 4,
+  productNameDark: {
+    color: '#FFFFFF',
   },
-  productSku: {
-    fontSize: 12,
-    color: colors.neutral[500],
-    marginBottom: 2,
+  productPrice: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#007AFF',
   },
   productCategory: {
-    fontSize: 12,
-    color: colors.primary[600],
-    fontWeight: '500' as const,
-  },
-  productDetails: {
-    marginBottom: 12,
-  },
-  productBrand: {
     fontSize: 14,
-    color: colors.neutral[700],
-    marginBottom: 4,
-  },
-  productDescription: {
-    fontSize: 14,
-    color: colors.neutral[600],
-    lineHeight: 18,
+    color: '#8E8E93',
+    marginBottom: 8,
   },
   productFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  priceSection: {
-    flex: 1,
-  },
-  productPrice: {
-    fontSize: 18,
-    fontWeight: 'bold' as const,
-    color: colors.primary[700],
-    marginBottom: 2,
-  },
-  stockText: {
-    fontSize: 12,
-    color: colors.neutral[500],
+  productStock: {
+    fontSize: 14,
+    fontWeight: '500',
   },
   productActions: {
     flexDirection: 'row',
-  },
-  actionButton: {
-    padding: 8,
-    marginLeft: 4,
+    alignItems: 'center',
   },
 });
