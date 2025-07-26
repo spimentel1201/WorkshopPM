@@ -1,29 +1,29 @@
-import { useState } from 'react';
-import { StyleSheet, Text, View, ScrollView, Dimensions, Pressable } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
-import { 
-  Plus, 
-  Package, 
-  Wrench, 
-  Users, 
-  DollarSign, 
-  TrendingUp, 
-  Clock, 
-  CheckCircle,
+import {
+  Activity,
   AlertTriangle,
-  Calendar,
   BarChart3,
-  Activity
+  Calendar,
+  CheckCircle,
+  Clock,
+  DollarSign,
+  Package,
+  Plus,
+  TrendingUp,
+  Users,
+  Wrench
 } from 'lucide-react-native';
+import { Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { Card } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
-import { useTheme } from '@/hooks/useTheme';
+import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
 import { useAuth } from '@/hooks/useAuth';
+import { useTheme } from '@/hooks/useTheme';
 import { UserRole } from '@/types/auth';
-import { RepairStatus } from '@/types/repair';
+import { RepairOrderStatus } from '@/types/repair';
+import { JSXElementConstructor, Key, ReactElement, ReactNode, ReactPortal } from 'react';
 
 const { width } = Dimensions.get('window');
 const isTablet = width > 768;
@@ -38,33 +38,6 @@ const mockStats = {
   lowStockItems: 8,
   activeUsers: 12,
 };
-
-const mockRecentOrders = [
-  {
-    id: '1',
-    customerName: 'Juan Pérez',
-    deviceType: 'Laptop HP',
-    status: RepairStatus.IN_PROGRESS,
-    createdAt: '2025-01-13T10:30:00Z',
-    estimatedCompletion: '2025-01-15T16:00:00Z',
-  },
-  {
-    id: '2',
-    customerName: 'María González',
-    deviceType: 'iPhone 12',
-    status: RepairStatus.PENDING,
-    createdAt: '2025-01-13T09:15:00Z',
-    estimatedCompletion: '2025-01-14T14:00:00Z',
-  },
-  {
-    id: '3',
-    customerName: 'Carlos Rodriguez',
-    deviceType: 'Samsung TV',
-    status: RepairStatus.COMPLETED,
-    createdAt: '2025-01-12T14:20:00Z',
-    estimatedCompletion: '2025-01-13T12:00:00Z',
-  },
-];
 
 const mockLowStockItems = [
   { id: '1', name: 'Pantalla iPhone 12', stock: 2, minStock: 5 },
@@ -101,13 +74,13 @@ export default function HomeScreen() {
     },
   });
 
-  const getStatusText = (status: RepairStatus) => {
+  const getStatusText = (status: RepairOrderStatus) => {
     switch (status) {
-      case RepairStatus.PENDING: return 'Pendiente';
-      case RepairStatus.IN_PROGRESS: return 'En Progreso';
-      case RepairStatus.COMPLETED: return 'Completado';
-      case RepairStatus.DELIVERED: return 'Entregado';
-      case RepairStatus.CANCELLED: return 'Cancelado';
+      case RepairOrderStatus.RECEIVED: return 'Recibido';
+      case RepairOrderStatus.IN_PROGRESS: return 'En Progreso';
+      case RepairOrderStatus.COMPLETED: return 'Completado';
+      case RepairOrderStatus.DELIVERED: return 'Entregado';
+      case RepairOrderStatus.CANCELLED: return 'Cancelado';
       default: return 'Desconocido';
     }
   };
@@ -281,7 +254,7 @@ export default function HomeScreen() {
         </View>
         
         <Card style={{ backgroundColor: theme.surface, borderColor: theme.border }}>
-          {recentOrders?.map((order, index) => (
+          {recentOrders?.map((order: { id: Key | null | undefined; customerName: string | number | boolean | ReactElement<any, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | null | undefined; deviceType: string | number | boolean | ReactElement<any, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | null | undefined; createdAt: string; status: RepairOrderStatus; }, index: number) => (
             <Pressable
               key={order.id}
               onPress={() => router.push(`/orders/${order.id}`)}
@@ -303,8 +276,8 @@ export default function HomeScreen() {
               </View>
               <View style={styles.orderStatus}>
                 <Badge
-                  variant={order.status === RepairStatus.COMPLETED ? 'success' : 
-                          order.status === RepairStatus.IN_PROGRESS ? 'info' : 'warning'}
+                  variant={order.status === RepairOrderStatus.COMPLETED ? 'success' : 
+                          order.status === RepairOrderStatus.IN_PROGRESS ? 'info' : 'warning'}
                   text={getStatusText(order.status)}
                 />
               </View>
@@ -333,7 +306,7 @@ export default function HomeScreen() {
           </View>
           
           <Card style={{ backgroundColor: theme.surface, borderColor: theme.border }}>
-            {lowStockItems.map((item, index) => (
+            {lowStockItems.map((item: { id: Key | null | undefined; name: string | number | boolean | ReactElement<any, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | null | undefined; stock: string | number | boolean | ReactElement<any, string | JSXElementConstructor<any>> | Iterable<ReactNode> | null | undefined; minStock: string | number | boolean | ReactElement<any, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | null | undefined; }, index: number) => (
               <View
                 key={item.id}
                 style={[

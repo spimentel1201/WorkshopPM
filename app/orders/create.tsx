@@ -11,6 +11,9 @@ import { ClientSearch } from '@/components/ClientSearch';
 import { useTheme } from '@/hooks/useTheme';
 import { DeviceType, Client } from '@/types/repair';
 
+import { useOrders } from '@/hooks/useOrders';
+import { CreateRepairOrderDto, RepairOrderStatus } from '@/types/repair';
+
 interface NewAccessory {
   id: string;
   name: string;
@@ -54,6 +57,7 @@ const deviceTypes = [
 
 export default function CreateOrderScreen() {
   const { theme } = useTheme();
+  const { createOrder } = useOrders();
   const [order, setOrder] = useState<NewOrder>({
     customerName: '',
     customerPhone: '',
@@ -181,12 +185,34 @@ export default function CreateOrderScreen() {
 
       setIsSubmitting(true);
       
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Preparar datos para el backend
+      const orderData: CreateRepairOrderDto = {
+        customerId: order.clientId || order.customerName, // Usar ID si existe, sino el nombre
+        technicianId: 'current-technician-id', // Obtener del contexto de auth
+        status: RepairOrderStatus.RECEIVED,
+        description: order.devices.map(d => `${d.brand} ${d.model} - ${d.reportedIssue}`).join('; '),
+        notes: '',
+        initialReviewCost: order.devices.reduce((sum, device) => sum + parseFloat(device.reviewCost || '0'), 0),
+        items: order.devices.map(device => ({
+          deviceType: device.type,
+          brand: device.brand,
+          model: device.model,
+          serialNumber: device.serialNumber,
+          problemDescription: device.reportedIssue,
+          accessories: device.accessories.filter(acc => acc.included).map(acc => acc.name),
+          quantity: 1,
+          price: parseFloat(device.reviewCost || '0')
+        }))
+      };
+
+      await createOrder.mutateAsync(orderData);
       
-      setShowSuccess(true);
+      Alert.alert('Éxito', 'Orden creada correctamente', [
+        { text: 'OK', onPress: () => router.back() }
+      ]);
       
     } catch (error) {
-      Alert.alert('Error', 'Ocurrió un error inesperado');
+      Alert.alert('Error', 'Ocurrió un error al crear la orden');
     } finally {
       setIsSubmitting(false);
     }

@@ -1,11 +1,3 @@
-export enum RepairStatus {
-    PENDING = 'PENDING',
-    IN_PROGRESS = 'IN_PROGRESS',
-    COMPLETED = 'COMPLETED',
-    DELIVERED = 'DELIVERED',
-    CANCELLED = 'CANCELLED'
-  }
-  
   export enum DeviceType {
     REFRIGERATOR = 'REFRIGERATOR',
     WASHING_MACHINE = 'WASHING_MACHINE',
@@ -58,7 +50,7 @@ export enum RepairStatus {
     customerDni?: string;
     customerAddress?: string;
     devices: Device[];
-    status: RepairStatus;
+    status: RepairOrderStatus;
     technicianId?: string;
     technicianName?: string;
     createdAt: string;
@@ -89,3 +81,51 @@ export enum RepairStatus {
     unitPrice: number;
     totalPrice: number;
   }
+
+export enum RepairOrderStatus {
+  RECEIVED = 'RECEIVED',
+  DIAGNOSED = 'DIAGNOSED', 
+  IN_PROGRESS = 'IN_PROGRESS',
+  WAITING_FOR_PARTS = 'WAITING_FOR_PARTS',
+  COMPLETED = 'COMPLETED',
+  DELIVERED = 'DELIVERED',
+  CANCELLED = 'CANCELLED'
+}
+
+// DTO para crear una orden
+export interface CreateRepairOrderDto {
+  customerId: string;
+  technicianId: string;
+  status: RepairOrderStatus;
+  description: string;
+  notes: string;
+  initialReviewCost: number;
+  items: CreateRepairOrderItemDto[];
+}
+
+export interface CreateRepairOrderItemDto {
+  deviceType: string;
+  brand: string;
+  model: string;
+  serialNumber: string;
+  problemDescription: string;
+  accessories: string[];
+  quantity: number;
+  price: number;
+}
+
+// DTO para actualizar una orden
+export interface UpdateRepairOrderDto {
+  customerId?: string;
+  technicianId?: string;
+  status?: RepairOrderStatus;
+  description?: string;
+  notes?: string;
+  initialReviewCost?: number;
+  items?: CreateRepairOrderItemDto[];
+}
+
+// DTO para cambiar estado
+export interface UpdateRepairOrderStatusDto {
+  status: RepairOrderStatus;
+}

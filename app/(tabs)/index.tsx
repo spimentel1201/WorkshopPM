@@ -1,17 +1,17 @@
-import { useState } from 'react';
-import { StyleSheet, Text, View, FlatList, Pressable, TextInput } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
-import { Search, Plus, Filter, ClipboardList } from 'lucide-react-native';
+import { ClipboardList, Filter, Plus, Search } from 'lucide-react-native';
+import { useState } from 'react';
+import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { Card } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
-import { StatusBadge } from '@/components/StatusBadge';
 import { EmptyState } from '@/components/EmptyState';
+import { StatusBadge } from '@/components/StatusBadge';
+import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
 import colors from '@/constants/colors';
-import { RepairOrder, RepairStatus } from '@/types/repair';
 import { useAuth } from '@/hooks/useAuth';
 import { UserRole } from '@/types/auth';
+import { RepairOrder, RepairOrderStatus } from '@/types/repair';
 
 // Mock data for repair orders
 const mockRepairOrders: RepairOrder[] = [
@@ -35,7 +35,7 @@ const mockRepairOrders: RepairOrder[] = [
         ],
       },
     ],
-    status: RepairStatus.PENDING,
+    status: RepairOrderStatus.RECEIVED,
     technicianId: '2',
     technicianName: 'Tech User',
     createdAt: '2025-07-10T10:00:00Z',
@@ -60,7 +60,7 @@ const mockRepairOrders: RepairOrder[] = [
         ],
       },
     ],
-    status: RepairStatus.IN_PROGRESS,
+    status: RepairOrderStatus.IN_PROGRESS,
     technicianId: '2',
     technicianName: 'Tech User',
     createdAt: '2025-07-09T14:30:00Z',
@@ -86,7 +86,7 @@ const mockRepairOrders: RepairOrder[] = [
         ],
       },
     ],
-    status: RepairStatus.COMPLETED,
+    status: RepairOrderStatus.COMPLETED,
     technicianId: '2',
     technicianName: 'Tech User',
     createdAt: '2025-07-08T11:45:00Z',
@@ -99,7 +99,7 @@ const mockRepairOrders: RepairOrder[] = [
 export default function RepairOrdersScreen() {
   const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<RepairStatus | null>(null);
+  const [statusFilter, setStatusFilter] = useState<RepairOrderStatus | null>(null);
 
   // Fetch repair orders
   const { data: repairOrders, isLoading } = useQuery({

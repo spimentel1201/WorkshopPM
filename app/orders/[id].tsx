@@ -1,150 +1,47 @@
+import { useQueryClient } from '@tanstack/react-query';
+import { router, Stack, useLocalSearchParams } from 'expo-router';
+import { AlertCircle, CheckCircle, Clock, Edit, Mail, MessageCircle, Phone } from 'lucide-react-native';
 import { useState } from 'react';
-import { StyleSheet, Text, View, ScrollView, Alert } from 'react-native';
-import { Stack, useLocalSearchParams, router } from 'expo-router';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Edit, MessageCircle, Phone, Mail, CheckCircle, Clock, AlertCircle } from 'lucide-react-native';
+import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { Card } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
 import { StatusBadge } from '@/components/StatusBadge';
+import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import { Input } from '@/components/ui/Input';
 import colors from '@/constants/colors';
-import { RepairOrder, RepairStatus } from '@/types/repair';
 import { useAuth } from '@/hooks/useAuth';
+import { useOrders } from '@/hooks/useOrders';
 import { UserRole } from '@/types/auth';
-
-// Mock data - same as in index.tsx
-const mockRepairOrders: RepairOrder[] = [
-  {
-    id: '1',
-    customerName: 'Juan Pérez',
-    customerPhone: '987654321',
-    customerEmail: 'juan@example.com',
-    devices: [
-      {
-        id: '1',
-        brand: 'Samsung',
-        model: 'Galaxy S21',
-        serialNumber: 'SN12345678',
-        type: 'SMARTPHONE' as any,
-        reviewCost: 25,
-        reportedIssue: 'Pantalla rota',
-        accessories: [
-          { id: '1', name: 'Cargador', included: true },
-          { id: '2', name: 'Auriculares', included: false },
-        ],
-      },
-    ],
-    status: RepairStatus.PENDING,
-    technicianId: '2',
-    technicianName: 'Tech User',
-    createdAt: '2025-07-10T10:00:00Z',
-    updatedAt: '2025-07-10T10:00:00Z',
-  },
-  {
-    id: '2',
-    customerName: 'María López',
-    customerPhone: '987123456',
-    customerEmail: 'maria@example.com',
-    devices: [
-      {
-        id: '2',
-        brand: 'HP',
-        model: 'Pavilion',
-        serialNumber: 'HP98765432',
-        type: 'LAPTOP' as any,
-        reviewCost: 35,
-        reportedIssue: 'No enciende',
-        accessories: [
-          { id: '3', name: 'Cargador', included: true },
-        ],
-      },
-    ],
-    status: RepairStatus.IN_PROGRESS,
-    technicianId: '2',
-    technicianName: 'Tech User',
-    createdAt: '2025-07-09T14:30:00Z',
-    updatedAt: '2025-07-11T09:15:00Z',
-  },
-  {
-    id: '3',
-    customerName: 'Carlos Rodríguez',
-    customerPhone: '912345678',
-    customerEmail: 'carlos@example.com',
-    devices: [
-      {
-        id: '3',
-        brand: 'LG',
-        model: 'Smart TV 55"',
-        serialNumber: 'LG87654321',
-        type: 'TV' as any,
-        reviewCost: 40,
-        reportedIssue: 'Sin imagen',
-        accessories: [
-          { id: '4', name: 'Control remoto', included: true },
-          { id: '5', name: 'Base', included: true },
-        ],
-      },
-    ],
-    status: RepairStatus.COMPLETED,
-    technicianId: '2',
-    technicianName: 'Tech User',
-    createdAt: '2025-07-08T11:45:00Z',
-    updatedAt: '2025-07-12T16:20:00Z',
-    completedAt: '2025-07-12T16:20:00Z',
-    totalCost: 120,
-  },
-];
+import { RepairOrderStatus } from '@/types/repair';
 
 export default function OrderDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { user } = useAuth();
+  const { getOrder, updateOrderStatus, updateOrder } = useOrders();
   const queryClient = useQueryClient();
   const [diagnosis, setDiagnosis] = useState('');
   const [isEditingDiagnosis, setIsEditingDiagnosis] = useState(false);
 
-  // Fetch order details
-  const { data: order, isLoading } = useQuery({
-    queryKey: ['repairOrder', id],
-    queryFn: async () => {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      const foundOrder = mockRepairOrders.find(order => order.id === id);
-      if (!foundOrder) throw new Error('Order not found');
-      return foundOrder;
-    },
-  });
-
-  // Update order status mutation
-  const updateStatusMutation = useMutation({
-    mutationFn: async (newStatus: RepairStatus) => {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      return { ...order!, status: newStatus };
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['repairOrders'] });
-      queryClient.invalidateQueries({ queryKey: ['repairOrder', id] });
-    },
-  });
+  // Fetch order details usando el hook
+  const { data: order, isLoading } = getOrder(id!);
 
   // Update diagnosis mutation
-  const updateDiagnosisMutation = useMutation({
-    mutationFn: async (newDiagnosis: string) => {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      return { ...order!, devices: order!.devices.map(device => ({ ...device, diagnosis: newDiagnosis })) };
-    },
-    onSuccess: () => {
-      setIsEditingDiagnosis(false);
-      queryClient.invalidateQueries({ queryKey: ['repairOrder', id] });
-    },
-  });
+  const updateDiagnosisMutation = updateOrder;
 
-  const handleStatusUpdate = (newStatus: RepairStatus) => {
+  // Update order status usando el hook
+  const handleStatusUpdate = (newStatus: RepairOrderStatus) => {
     Alert.alert(
       'Actualizar Estado',
       `¿Confirma cambiar el estado a ${getStatusText(newStatus)}?`,
       [
         { text: 'Cancelar', style: 'cancel' },
-        { text: 'Confirmar', onPress: () => updateStatusMutation.mutate(newStatus) }
+        { 
+          text: 'Confirmar', 
+          onPress: () => updateOrderStatus.mutate({ 
+            id: id!, 
+            status: { status: newStatus } 
+          })
+        }
       ]
     );
   };
@@ -154,7 +51,13 @@ export default function OrderDetailsScreen() {
       Alert.alert('Error', 'El diagnóstico no puede estar vacío');
       return;
     }
-    updateDiagnosisMutation.mutate(diagnosis);
+    updateDiagnosisMutation.mutate({
+      id: id!,
+      data: {
+        // Aquí deberías incluir los campos necesarios para actualizar el diagnóstico
+        description: diagnosis
+      }
+    });
   };
 
   const handleContactCustomer = (method: 'phone' | 'whatsapp' | 'email') => {
@@ -177,22 +80,25 @@ export default function OrderDetailsScreen() {
     }
   };
 
-  const getStatusText = (status: RepairStatus): string => {
+  const getStatusText = (status: RepairOrderStatus): string => {
     switch (status) {
-      case RepairStatus.PENDING: return 'Pendiente';
-      case RepairStatus.IN_PROGRESS: return 'En Reparación';
-      case RepairStatus.COMPLETED: return 'Listo';
-      case RepairStatus.DELIVERED: return 'Entregado';
-      case RepairStatus.CANCELLED: return 'Cancelado';
+      case RepairOrderStatus.RECEIVED: return 'Recibido';
+      case RepairOrderStatus.DIAGNOSED: return 'Diagnosticado';
+      case RepairOrderStatus.IN_PROGRESS: return 'En Progreso';
+      case RepairOrderStatus.WAITING_FOR_PARTS: return 'Esperando Repuestos';
+      case RepairOrderStatus.COMPLETED: return 'Completado';
+      case RepairOrderStatus.DELIVERED: return 'Entregado';
+      case RepairOrderStatus.CANCELLED: return 'Cancelado';
       default: return 'Desconocido';
     }
   };
 
-  const getNextStatus = (currentStatus: RepairStatus): RepairStatus | null => {
+  const getNextStatus = (currentStatus: RepairOrderStatus): RepairOrderStatus | null => {
     switch (currentStatus) {
-      case RepairStatus.PENDING: return RepairStatus.IN_PROGRESS;
-      case RepairStatus.IN_PROGRESS: return RepairStatus.COMPLETED;
-      case RepairStatus.COMPLETED: return RepairStatus.DELIVERED;
+      case RepairOrderStatus.RECEIVED: return RepairOrderStatus.DIAGNOSED;
+      case RepairOrderStatus.DIAGNOSED: return RepairOrderStatus.IN_PROGRESS;
+      case RepairOrderStatus.IN_PROGRESS: return RepairOrderStatus.COMPLETED;
+      case RepairOrderStatus.COMPLETED: return RepairOrderStatus.DELIVERED;
       default: return null;
     }
   };
@@ -237,7 +143,7 @@ export default function OrderDetailsScreen() {
           {nextStatus && (
             <Button
               onPress={() => handleStatusUpdate(nextStatus)}
-              loading={updateStatusMutation.isPending}
+              loading={updateOrderStatus.isPending}
               leftIcon={<CheckCircle size={18} color={colors.white} />}
             >
               Marcar como {getStatusText(nextStatus)}
@@ -386,7 +292,7 @@ export default function OrderDetailsScreen() {
             </View>
           </View>
           
-          {order.status !== RepairStatus.PENDING && (
+          {order.status !== RepairOrderStatus.RECEIVED && (
             <View style={styles.timelineItem}>
               <AlertCircle size={16} color={colors.info} />
               <View style={styles.timelineContent}>
