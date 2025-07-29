@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import colors from '@/constants/colors';
-import { RepairOrder, RepairStatus } from '@/types/repair';
+import { RepairOrder, RepairOrderStatus } from '@/types/repair';
 
 // Mock repair orders for selection
 const mockRepairOrders: RepairOrder[] = [
@@ -30,7 +30,7 @@ const mockRepairOrders: RepairOrder[] = [
         accessories: [],
       },
     ],
-    status: RepairStatus.IN_PROGRESS,
+    status: RepairOrderStatus.IN_PROGRESS,
     technicianId: '2',
     technicianName: 'Tech User',
     createdAt: '2025-07-10T10:00:00Z',
@@ -53,7 +53,7 @@ const mockRepairOrders: RepairOrder[] = [
         accessories: [],
       },
     ],
-    status: RepairStatus.IN_PROGRESS,
+    status: RepairOrderStatus.IN_PROGRESS,
     technicianId: '2',
     technicianName: 'Tech User',
     createdAt: '2025-07-11T14:20:00Z',
@@ -86,7 +86,7 @@ export default function CreateBudgetScreen() {
     queryFn: async () => {
       await new Promise(resolve => setTimeout(resolve, 500));
       // Only return orders that are in progress and don't have budgets yet
-      return mockRepairOrders.filter(order => order.status === RepairStatus.IN_PROGRESS);
+      return mockRepairOrders.filter(order => order.status === RepairOrderStatus.IN_PROGRESS);
     },
   });
 

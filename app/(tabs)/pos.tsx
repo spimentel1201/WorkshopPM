@@ -190,7 +190,7 @@ export default function POSScreen() {
             
             <View style={styles.priceStockContainer}>
               <Text style={styles.productPrice}>
-                ${item.price.toFixed(2)}
+S/{item.price.toFixed(2)}
               </Text>
               <Text style={[
                 styles.productStock,

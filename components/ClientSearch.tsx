@@ -1,182 +1,129 @@
-import { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, TextInput, FlatList, Pressable, Modal } from 'react-native';
+import { useState, useEffect, useCallback } from 'react';
+import { StyleSheet, Text, View, TextInput, FlatList, Pressable, Modal, ActivityIndicator } from 'react-native';
 import { Search, User, Phone, Mail, MapPin, Hash, Plus, X } from 'lucide-react-native';
+import { useQuery } from '@tanstack/react-query';
+import debounce from 'lodash/debounce';
 
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useTheme } from '@/hooks/useTheme';
 import { Client } from '@/types/repair';
+import api from '@/src/lib/api';
 
 interface ClientSearchProps {
   onClientSelect: (client: Partial<Client>) => void;
   selectedClient?: Partial<Client>;
 }
 
-// Mock clients data
-const mockClients: Client[] = [
-  {
-    id: '1',
-    name: 'Juan Carlos Pérez',
-    phone: '+51 987654321',
-    email: 'juan.perez@email.com',
-    dni: '12345678',
-    address: 'Av. Larco 123, Miraflores, Lima',
-    createdAt: '2025-01-01T10:00:00Z',
-    updatedAt: '2025-01-01T10:00:00Z',
-  },
-  {
-    id: '2',
-    name: 'María González',
-    phone: '+51 912345678',
-    email: 'maria.gonzalez@email.com',
-    dni: '87654321',
-    address: 'Jr. Cusco 456, Cercado de Lima, Lima',
-    createdAt: '2025-01-02T11:00:00Z',
-    updatedAt: '2025-01-02T11:00:00Z',
-  },
-  {
-    id: '3',
-    name: 'Carlos Rodriguez',
-    phone: '+51 998877665',
-    email: 'carlos.rodriguez@email.com',
-    dni: '11223344',
-    address: 'Av. Brasil 789, Magdalena, Lima',
-    createdAt: '2025-01-03T12:00:00Z',
-    updatedAt: '2025-01-03T12:00:00Z',
-  },
-  {
-    id: '4',
-    name: 'Ana Lucia Torres',
-    phone: '+51 955443322',
-    email: 'ana.torres@email.com',
-    dni: '44332211',
-    address: 'Calle Los Olivos 321, San Isidro, Lima',
-    createdAt: '2025-01-04T13:00:00Z',
-    updatedAt: '2025-01-04T13:00:00Z',
-  },
-  {
-    id: '5',
-    name: 'Roberto Silva',
-    phone: '+51 977889900',
-    dni: '55667788',
-    address: 'Av. Javier Prado 654, San Borja, Lima',
-    createdAt: '2025-01-05T14:00:00Z',
-    updatedAt: '2025-01-05T14:00:00Z',
-  },
-];
-
+// Search clients from API
+const searchClients = async (query: string): Promise<Client[]> => {
+  if (!query.trim()) return [];
+  
+  try {
+    const response = await api.get<Client[]>('/customers/search', {
+      params: { query: query.trim() }
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error searching clients:', error);
+    return [];
+  }
+};
 export function ClientSearch({ onClientSelect, selectedClient }: ClientSearchProps) {
   const { theme } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
   const [showResults, setShowResults] = useState(false);
   const [showNewClientModal, setShowNewClientModal] = useState(false);
-  const [filteredClients, setFilteredClients] = useState<Client[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
   
-  // New client form state
-  const [newClient, setNewClient] = useState({
-    name: '',
-    phone: '',
-    email: '',
-    dni: '',
-    address: '',
+  // Debounced search function
+  const debouncedSearch = useCallback(
+    debounce((query: string) => {
+      refetch();
+    }, 300),
+    []
+  );
+
+  // Query for searching clients
+  const {
+    data: clients = [],
+    isLoading,
+    refetch,
+  } = useQuery({
+    queryKey: ['search-clients', searchQuery],
+    queryFn: () => searchClients(searchQuery),
+    enabled: !!searchQuery.trim(),
   });
 
-  useEffect(() => {
-    if (searchQuery.length >= 2) {
-      const filtered = mockClients.filter(client => 
-        client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        client.phone.includes(searchQuery) ||
-        (client.dni && client.dni.includes(searchQuery)) ||
-        (client.email && client.email.toLowerCase().includes(searchQuery.toLowerCase()))
-      );
-      setFilteredClients(filtered);
-      setShowResults(true);
+  // Handle search input change
+  const handleSearchChange = (text: string) => {
+    setSearchQuery(text);
+    if (text.trim()) {
+      setIsSearching(true);
+      debouncedSearch(text);
     } else {
-      setFilteredClients([]);
       setShowResults(false);
     }
-  }, [searchQuery]);
-
-  const handleClientSelect = (client: Client) => {
-    onClientSelect({
-      id: client.id,
-      name: client.name,
-      phone: client.phone,
-      email: client.email,
-      dni: client.dni,
-      address: client.address,
-    });
-    setSearchQuery(client.name);
-    setShowResults(false);
   };
 
-  const handleCreateNewClient = () => {
-    if (!newClient.name.trim() || !newClient.phone.trim()) {
-      return;
-    }
-
-    const client: Partial<Client> = {
-      id: Date.now().toString(),
-      name: newClient.name.trim(),
-      phone: newClient.phone.trim(),
-      email: newClient.email.trim() || undefined,
-      dni: newClient.dni.trim() || undefined,
-      address: newClient.address.trim() || undefined,
-    };
-
+  // Handle client selection
+  const handleClientSelect = (client: Partial<Client>) => {
     onClientSelect(client);
-    setSearchQuery(client.name);
+    setSearchQuery(client.name || '');
     setShowResults(false);
-    setShowNewClientModal(false);
-    setNewClient({ name: '', phone: '', email: '', dni: '', address: '' });
   };
 
+  // Handle create new client
+  const handleCreateNewClient = () => {
+    if (!searchQuery.trim()) return;
+    
+    const newClient: Partial<Client> = {
+      id: 'new',
+      name: searchQuery.trim(),
+      phone: '',
+    };
+    
+    onClientSelect(newClient);
+    setShowResults(false);
+  };
+
+  // Clear selection
   const clearSelection = () => {
     setSearchQuery('');
     setShowResults(false);
     onClientSelect({});
   };
 
+  // Render client item
   const renderClientItem = ({ item }: { item: Client }) => (
-    <Pressable onPress={() => handleClientSelect(item)}>
-      <View style={[styles.clientItem, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-        <View style={styles.clientInfo}>
-          <View style={styles.clientHeader}>
-            <User size={16} color={theme.primary[500]} />
-            <Text style={[styles.clientName, { color: theme.text.primary }]}>{item.name}</Text>
+    <Pressable
+      style={({ pressed }) => [
+        styles.clientItem,
+        pressed && { backgroundColor: theme.surface },
+      ]}
+      onPress={() => handleClientSelect(item)}
+    >
+      <View style={styles.clientInfo}>
+        <Text style={[styles.clientName, { color: theme.text.primary }]}>
+          {item.name}
+        </Text>
+        {item.phone && (
+          <View style={styles.clientDetail}>
+            <Phone size={14} color={theme.text.tertiary} style={styles.icon} />
+            <Text style={[styles.clientDetailText, { color: theme.text.secondary }]}>
+              {item.phone}
+            </Text>
           </View>
-          
-          <View style={styles.clientDetails}>
-            <View style={styles.clientDetail}>
-              <Phone size={12} color={theme.text.tertiary} />
-              <Text style={[styles.clientDetailText, { color: theme.text.secondary }]}>{item.phone}</Text>
-            </View>
-            
-            {item.dni && (
-              <View style={styles.clientDetail}>
-                <Hash size={12} color={theme.text.tertiary} />
-                <Text style={[styles.clientDetailText, { color: theme.text.secondary }]}>{item.dni}</Text>
-              </View>
-            )}
-            
-            {item.email && (
-              <View style={styles.clientDetail}>
-                <Mail size={12} color={theme.text.tertiary} />
-                <Text style={[styles.clientDetailText, { color: theme.text.secondary }]}>{item.email}</Text>
-              </View>
-            )}
-            
-            {item.address && (
-              <View style={styles.clientDetail}>
-                <MapPin size={12} color={theme.text.tertiary} />
-                <Text style={[styles.clientDetailText, { color: theme.text.secondary }]} numberOfLines={1}>
-                  {item.address}
-                </Text>
-              </View>
-            )}
+        )}
+        {item.email && (
+          <View style={styles.clientDetail}>
+            <Mail size={14} color={theme.text.tertiary} style={styles.icon} />
+            <Text style={[styles.clientDetailText, { color: theme.text.secondary }]}>
+              {item.email}
+            </Text>
           </View>
-        </View>
+        )}
       </View>
     </Pressable>
   );
@@ -190,10 +137,10 @@ export function ClientSearch({ onClientSelect, selectedClient }: ClientSearchPro
           <Search size={20} color={theme.text.tertiary} style={styles.searchIcon} />
           <TextInput
             style={[styles.searchInput, { color: theme.text.primary }]}
-            placeholder="Buscar por nombre, teléfono o DNI..."
+            placeholder="Buscar cliente..."
             placeholderTextColor={theme.text.tertiary}
             value={searchQuery}
-            onChangeText={setSearchQuery}
+            onChangeText={handleSearchChange}
             onFocus={() => searchQuery.length >= 2 && setShowResults(true)}
           />
           {selectedClient?.name && (
@@ -215,28 +162,28 @@ export function ClientSearch({ onClientSelect, selectedClient }: ClientSearchPro
 
       {showResults && (
         <Card style={[styles.resultsContainer, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          {filteredClients.length > 0 ? (
-            <FlatList
-              data={filteredClients}
-              renderItem={renderClientItem}
-              keyExtractor={item => item.id}
-              style={styles.resultsList}
-              nestedScrollEnabled
-            />
-          ) : (
-            <View style={styles.noResults}>
-              <Text style={[styles.noResultsText, { color: theme.text.secondary }]}>
-                No se encontraron clientes
-              </Text>
-              <Button
-                onPress={() => setShowNewClientModal(true)}
-                size="sm"
-                leftIcon={<Plus size={16} color={theme.white} />}
-              >
-                Crear nuevo cliente
-              </Button>
+          {isLoading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="small" color={theme.primary[500]} />
             </View>
-          )}
+          ) : clients.length > 0 ? (
+            <FlatList
+              data={clients}
+              keyExtractor={(item) => item.id}
+              renderItem={renderClientItem}
+              keyboardShouldPersistTaps="always"
+              style={styles.resultsList}
+            />
+          ) : searchQuery ? (
+            <Pressable
+              style={styles.noResults}
+              onPress={handleCreateNewClient}
+            >
+              <Text style={[styles.noResultsText, { color: theme.primary[500] }]}>
+                Crear nuevo cliente: {searchQuery}
+              </Text>
+            </Pressable>
+          ) : null}
         </Card>
       )}
 
@@ -259,31 +206,31 @@ export function ClientSearch({ onClientSelect, selectedClient }: ClientSearchPro
             <Input
               label="Nombre completo *"
               placeholder="Ingrese el nombre completo"
-              value={newClient.name}
-              onChangeText={(value) => setNewClient(prev => ({ ...prev, name: value }))}
+              value={searchQuery}
+              onChangeText={(value) => setSearchQuery(value)}
             />
             
             <Input
               label="Teléfono *"
               placeholder="Ingrese el número de teléfono"
-              value={newClient.phone}
-              onChangeText={(value) => setNewClient(prev => ({ ...prev, phone: value }))}
+              value=""
+              onChangeText={(value) => {}}
               keyboardType="phone-pad"
             />
             
             <Input
               label="DNI / Documento"
               placeholder="Ingrese el número de documento"
-              value={newClient.dni}
-              onChangeText={(value) => setNewClient(prev => ({ ...prev, dni: value }))}
+              value=""
+              onChangeText={(value) => {}}
               keyboardType="numeric"
             />
             
             <Input
               label="Correo electrónico"
               placeholder="correo@ejemplo.com"
-              value={newClient.email}
-              onChangeText={(value) => setNewClient(prev => ({ ...prev, email: value }))}
+              value=""
+              onChangeText={(value) => {}}
               keyboardType="email-address"
               autoCapitalize="none"
             />
@@ -291,8 +238,8 @@ export function ClientSearch({ onClientSelect, selectedClient }: ClientSearchPro
             <Input
               label="Dirección"
               placeholder="Ingrese la dirección completa"
-              value={newClient.address}
-              onChangeText={(value) => setNewClient(prev => ({ ...prev, address: value }))}
+              value=""
+              onChangeText={(value) => {}}
               multiline
               numberOfLines={2}
             />
@@ -307,7 +254,7 @@ export function ClientSearch({ onClientSelect, selectedClient }: ClientSearchPro
               </Button>
               <Button
                 onPress={handleCreateNewClient}
-                disabled={!newClient.name.trim() || !newClient.phone.trim()}
+                disabled={!searchQuery.trim()}
                 style={styles.modalButton}
               >
                 Crear Cliente
@@ -370,35 +317,32 @@ const styles = StyleSheet.create({
   clientInfo: {
     flex: 1,
   },
-  clientHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
   clientName: {
     fontSize: 16,
     fontWeight: '500' as const,
-    marginLeft: 8,
-  },
-  clientDetails: {
-    gap: 4,
+    marginBottom: 4,
   },
   clientDetail: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginTop: 2,
   },
   clientDetailText: {
     fontSize: 14,
     marginLeft: 6,
-    flex: 1,
   },
-  noResults: {
+  icon: {
+    marginRight: 6,
+  },
+  loadingContainer: {
     padding: 16,
     alignItems: 'center',
   },
+  noResults: {
+    padding: 16,
+  },
   noResultsText: {
     fontSize: 16,
-    marginBottom: 12,
   },
   modalContainer: {
     flex: 1,

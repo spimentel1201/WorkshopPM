@@ -168,7 +168,7 @@ export default function CheckoutScreen() {
             <View key={item.id} style={styles.orderItem}>
               <Text style={styles.itemName}>{item.productName}</Text>
               <Text style={styles.itemQuantity}>x{item.quantity}</Text>
-              <Text style={styles.itemPrice}>${item.price.toFixed(2)}</Text>
+              <Text style={styles.itemPrice}>S/{item.price.toFixed(2)}</Text>
             </View>
           ))}
           

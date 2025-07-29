@@ -20,6 +20,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { useAuth } from '@/hooks/useAuth';
+import { useOrders } from '@/hooks/useOrders';
 import { useTheme } from '@/hooks/useTheme';
 import { UserRole } from '@/types/auth';
 import { RepairOrderStatus } from '@/types/repair';
@@ -48,6 +49,7 @@ const mockLowStockItems = [
 export default function HomeScreen() {
   const { theme } = useTheme();
   const { user } = useAuth();
+  const { getOrders } = useOrders();
 
   // Fetch dashboard data
   const { data: stats, isLoading: statsLoading } = useQuery({
@@ -58,13 +60,11 @@ export default function HomeScreen() {
     },
   });
 
-  const { data: recentOrders, isLoading: ordersLoading } = useQuery({
-    queryKey: ['recent-orders'],
-    queryFn: async () => {
-      await new Promise(resolve => setTimeout(resolve, 800));
-      return mockRecentOrders;
-    },
-  });
+  // Use the useOrders hook to fetch recent orders
+  const { data: allOrders, isLoading: ordersLoading, error: ordersError } = getOrders();
+  
+  // Get the 5 most recent orders
+  const recentOrders = allOrders?.slice(0, 5);
 
   const { data: lowStockItems, isLoading: stockLoading } = useQuery({
     queryKey: ['low-stock'],
@@ -254,7 +254,7 @@ export default function HomeScreen() {
         </View>
         
         <Card style={{ backgroundColor: theme.surface, borderColor: theme.border }}>
-          {recentOrders?.map((order: { id: Key | null | undefined; customerName: string | number | boolean | ReactElement<any, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | null | undefined; deviceType: string | number | boolean | ReactElement<any, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | null | undefined; createdAt: string; status: RepairOrderStatus; }, index: number) => (
+          {recentOrders?.map((order: any, index: number) => (
             <Pressable
               key={order.id}
               onPress={() => router.push(`/orders/${order.id}`)}
@@ -306,7 +306,7 @@ export default function HomeScreen() {
           </View>
           
           <Card style={{ backgroundColor: theme.surface, borderColor: theme.border }}>
-            {lowStockItems.map((item: { id: Key | null | undefined; name: string | number | boolean | ReactElement<any, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | null | undefined; stock: string | number | boolean | ReactElement<any, string | JSXElementConstructor<any>> | Iterable<ReactNode> | null | undefined; minStock: string | number | boolean | ReactElement<any, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | null | undefined; }, index: number) => (
+            {lowStockItems.map((item: any, index: number) => (
               <View
                 key={item.id}
                 style={[

@@ -12,7 +12,9 @@ import { useTheme } from '@/hooks/useTheme';
 import { DeviceType, Client } from '@/types/repair';
 
 import { useOrders } from '@/hooks/useOrders';
+import { useClients } from '@/hooks/useClients';
 import { CreateRepairOrderDto, RepairOrderStatus } from '@/types/repair';
+import { useAuth } from '@/hooks/useAuth';
 
 interface NewAccessory {
   id: string;
@@ -58,6 +60,8 @@ const deviceTypes = [
 export default function CreateOrderScreen() {
   const { theme } = useTheme();
   const { createOrder } = useOrders();
+  const { createClient } = useClients();
+  const { user } = useAuth();
   const [order, setOrder] = useState<NewOrder>({
     customerName: '',
     customerPhone: '',
@@ -161,7 +165,7 @@ export default function CreateOrderScreen() {
       customerName: client.name || '',
       customerPhone: client.phone || '',
       customerEmail: client.email || '',
-      customerDni: client.dni || '',
+      customerDni: client.documentNumber || '',
       customerAddress: client.address || '',
     }));
   };
@@ -185,10 +189,27 @@ export default function CreateOrderScreen() {
 
       setIsSubmitting(true);
       
-      // Preparar datos para el backend
+      let customerId = order.clientId;
+      
+      // Si no hay un clientId, significa que es un cliente nuevo
+      if (!customerId) {
+        // Crear el cliente primero
+        const newClient = await createClient.mutateAsync({
+          name: order.customerName,
+          email: order.customerEmail,
+          phone: order.customerPhone,
+          documentType: 'DNI',
+          documentNumber: order.customerDni?.toString() || '',
+          address: order.customerAddress
+        });
+        
+        customerId = newClient.id;
+      }
+      
+      // Preparar datos para la orden
       const orderData: CreateRepairOrderDto = {
-        customerId: order.clientId || order.customerName, // Usar ID si existe, sino el nombre
-        technicianId: 'current-technician-id', // Obtener del contexto de auth
+        customerId,
+        technicianId: user?.id || '',
         status: RepairOrderStatus.RECEIVED,
         description: order.devices.map(d => `${d.brand} ${d.model} - ${d.reportedIssue}`).join('; '),
         notes: '',

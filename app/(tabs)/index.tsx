@@ -1,4 +1,3 @@
-import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { ClipboardList, Filter, Plus, Search } from 'lucide-react-native';
 import { useState } from 'react';
@@ -10,228 +9,178 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import colors from '@/constants/colors';
 import { useAuth } from '@/hooks/useAuth';
+import { useOrders } from '@/hooks/useOrders';
 import { UserRole } from '@/types/auth';
 import { RepairOrder, RepairOrderStatus } from '@/types/repair';
-
-// Mock data for repair orders
-const mockRepairOrders: RepairOrder[] = [
-  {
-    id: '1',
-    customerName: 'Juan Pérez',
-    customerPhone: '987654321',
-    customerEmail: 'juan@example.com',
-    devices: [
-      {
-        id: '1',
-        brand: 'Samsung',
-        model: 'Galaxy S21',
-        serialNumber: 'SN12345678',
-        type: 'SMARTPHONE' as any,
-        reviewCost: 25,
-        reportedIssue: 'Pantalla rota',
-        accessories: [
-          { id: '1', name: 'Cargador', included: true },
-          { id: '2', name: 'Auriculares', included: false },
-        ],
-      },
-    ],
-    status: RepairOrderStatus.RECEIVED,
-    technicianId: '2',
-    technicianName: 'Tech User',
-    createdAt: '2025-07-10T10:00:00Z',
-    updatedAt: '2025-07-10T10:00:00Z',
-  },
-  {
-    id: '2',
-    customerName: 'María López',
-    customerPhone: '987123456',
-    customerEmail: 'maria@example.com',
-    devices: [
-      {
-        id: '2',
-        brand: 'HP',
-        model: 'Pavilion',
-        serialNumber: 'HP98765432',
-        type: 'LAPTOP' as any,
-        reviewCost: 35,
-        reportedIssue: 'No enciende',
-        accessories: [
-          { id: '3', name: 'Cargador', included: true },
-        ],
-      },
-    ],
-    status: RepairOrderStatus.IN_PROGRESS,
-    technicianId: '2',
-    technicianName: 'Tech User',
-    createdAt: '2025-07-09T14:30:00Z',
-    updatedAt: '2025-07-11T09:15:00Z',
-  },
-  {
-    id: '3',
-    customerName: 'Carlos Rodríguez',
-    customerPhone: '912345678',
-    customerEmail: 'carlos@example.com',
-    devices: [
-      {
-        id: '3',
-        brand: 'LG',
-        model: 'Smart TV 55"',
-        serialNumber: 'LG87654321',
-        type: 'TV' as any,
-        reviewCost: 40,
-        reportedIssue: 'Sin imagen',
-        accessories: [
-          { id: '4', name: 'Control remoto', included: true },
-          { id: '5', name: 'Base', included: true },
-        ],
-      },
-    ],
-    status: RepairOrderStatus.COMPLETED,
-    technicianId: '2',
-    technicianName: 'Tech User',
-    createdAt: '2025-07-08T11:45:00Z',
-    updatedAt: '2025-07-12T16:20:00Z',
-    completedAt: '2025-07-12T16:20:00Z',
-    totalCost: 120,
-  },
-];
 
 export default function RepairOrdersScreen() {
   const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<RepairOrderStatus | null>(null);
+  const [selectedStatus, setSelectedStatus] = useState<RepairOrderStatus | 'all'>('all');
+  
+  // Use the useOrders hook to fetch orders
+  const { getOrders } = useOrders();
+  const { data: orders = [], isLoading, error, refetch } = getOrders();
 
-  // Fetch repair orders
-  const { data: repairOrders, isLoading } = useQuery({
-    queryKey: ['repairOrders'],
-    queryFn: async () => {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Filter orders for technicians to only show their assigned orders
-      if (user?.role === UserRole.TECHNICIAN) {
-        return mockRepairOrders.filter(order => order.technicianId === user.id);
-      }
-      
-      return mockRepairOrders;
-    },
-  });
+  // Debug log to see the structure of the received data
+  console.log('Orders data:', JSON.stringify(orders, null, 2));
 
-  // Filter orders based on search query and status filter
-  const filteredOrders = repairOrders?.filter(order => {
+  // Filter orders based on search and status
+  const filteredOrders = orders.filter(order => {
+    const searchTerm = searchQuery.toLowerCase();
     const matchesSearch = 
-      order.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      order.customerPhone.includes(searchQuery) ||
-      order.devices.some(device => 
-        device.brand.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        device.model.toLowerCase().includes(searchQuery.toLowerCase())
-      );
+      order.customerName?.toLowerCase().includes(searchTerm) ||
+      order.customerPhone?.toLowerCase().includes(searchTerm) ||
+      order.customerEmail?.toLowerCase().includes(searchTerm) ||
+      order.id?.toLowerCase().includes(searchTerm);
     
-    const matchesStatus = statusFilter ? order.status === statusFilter : true;
+    const matchesStatus = selectedStatus === 'all' || order.status === selectedStatus;
     
     return matchesSearch && matchesStatus;
   });
 
   const handleCreateOrder = () => {
-    // Navigate to create order screen
     router.push('/orders/create');
   };
 
   const handleOrderPress = (orderId: string) => {
-    // Navigate to order details screen
     router.push(`/orders/${orderId}`);
   };
 
   const renderOrderItem = ({ item }: { item: RepairOrder }) => {
-    const device = item.devices[0]; // Show first device info
+    // Debug log for each order item
+    console.log('Rendering order item:', JSON.stringify(item, null, 2));
     
     return (
       <Pressable onPress={() => handleOrderPress(item.id)}>
         <Card style={styles.orderCard}>
           <View style={styles.orderHeader}>
-            <Text style={styles.customerName}>{item.customerName}</Text>
+            <Text style={styles.customerName}>{item.customerName || 'Cliente'}</Text>
             <StatusBadge status={item.status} />
           </View>
           
           <View style={styles.deviceInfo}>
             <Text style={styles.deviceName}>
-              {device.brand} {device.model}
+              {item.devices?.[0] ? `${item.devices[0].brand || ''} ${item.devices[0].model || ''}`.trim() : 'Sin dispositivo'}
             </Text>
-            <Text style={styles.deviceType}>
-              {device.type.replace('_', ' ')}
+            <Text style={styles.deviceIssue} numberOfLines={1}>
+              {item.devices?.[0]?.reportedIssue || item.problemDescription || 'Sin descripción'}
             </Text>
           </View>
           
-          <Text style={styles.issueText} numberOfLines={2}>
-            {device.reportedIssue}
-          </Text>
-          
           <View style={styles.orderFooter}>
-            <Text style={styles.dateText}>
-              {new Date(item.createdAt).toLocaleDateString()}
+            <Text style={styles.orderDate}>
+              {item.createdAt ? new Date(item.createdAt).toLocaleDateString('es-ES', {
+                day: '2-digit',
+                month: '2-digit',
+                year: '2-digit',
+              }) : 'Fecha no disponible'}
             </Text>
-            {item.devices.length > 1 && (
-              <Text style={styles.multipleDevices}>
-                +{item.devices.length - 1} dispositivos más
-              </Text>
-            )}
+            <Text style={styles.orderId}>#{item.id ? item.id.slice(0, 6) : 'N/A'}</Text>
           </View>
         </Card>
       </Pressable>
     );
   };
 
-  const renderEmptyState = () => (
-    <EmptyState
-      icon={<ClipboardList size={48} color={colors.neutral['400']} />}
-      title="No hay órdenes de reparación"
-      description="Crea una nueva orden para comenzar a gestionar las reparaciones."
-      actionLabel="Crear Orden"
-      onAction={handleCreateOrder}
-    />
-  );
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text>Cargando órdenes...</Text>
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.errorContainer}>
+        <Text style={styles.errorText}>Error al cargar las órdenes</Text>
+        <Button onPress={() => refetch()} style={styles.retryButton}>
+          Reintentar
+        </Button>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
+      {/* Header */}
       <View style={styles.header}>
-        <View style={styles.searchContainer}>
-          <Search size={20} color={colors.neutral['500']} style={styles.searchIcon} />
+        <Text style={styles.title}>Órdenes de Reparación</Text>
+        {user?.role === UserRole.ADMIN && (
+          <Button onPress={handleCreateOrder} style={styles.addButton}>
+            <Plus size={20} color="white" />
+            <Text style={styles.buttonText}>Nueva Orden</Text>
+          </Button>
+        )}
+      </View>
+
+      {/* Search and Filter */}
+      <View style={styles.searchContainer}>
+        <View style={styles.searchInputContainer}>
+          <Search size={20} color={colors.neutral[600]} style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Buscar por cliente, teléfono..."
+            placeholder="Buscar órdenes..."
             value={searchQuery}
             onChangeText={setSearchQuery}
+            placeholderTextColor={colors.neutral[600]}
           />
         </View>
         
-        <Button
-          onPress={() => {/* Toggle filter modal */}}
-          variant="outline"
-          size="sm"
-          leftIcon={<Filter size={18} color={colors.primary['500']} />}
+        <Pressable 
+          style={styles.filterButton}
+          onPress={() => {
+            // TODO: Implement filter modal
+          }}
         >
-          Filtrar
-        </Button>
+          <Filter size={20} color={colors.primary[500]} />
+        </Pressable>
       </View>
 
-      {user?.role === UserRole.ADMIN && (
-        <View style={styles.actionContainer}>
-          <Button
-            onPress={handleCreateOrder}
-            leftIcon={<Plus size={18} color={colors.white} />}
-          >
-            Nueva Orden
-          </Button>
-        </View>
+      {/* Orders List */}
+      {filteredOrders.length > 0 ? (
+        <FlatList
+          data={filteredOrders}
+          renderItem={renderOrderItem}
+          keyExtractor={item => item.id}
+          contentContainerStyle={styles.ordersList}
+          showsVerticalScrollIndicator={false}
+          refreshing={isLoading}
+          onRefresh={refetch}
+        />
+      ) : (
+        <EmptyState
+          icon={<ClipboardList size={48} color={colors.neutral[400]} />}
+          title={
+            searchQuery || selectedStatus !== 'all'
+              ? 'No se encontraron resultados'
+              : 'No hay órdenes registradas'
+          }
+          description={
+            searchQuery || selectedStatus !== 'all'
+              ? 'No hay órdenes que coincidan con tu búsqueda o filtros actuales.'
+              : 'Comienza creando una nueva orden para verla aquí.'
+          }
+          actionLabel={
+            searchQuery || selectedStatus !== 'all'
+              ? 'Limpiar filtros'
+              : user?.role === UserRole.ADMIN
+              ? 'Crear primera orden'
+              : undefined
+          }
+          onAction={
+            searchQuery || selectedStatus !== 'all'
+              ? () => {
+                  setSearchQuery('');
+                  setSelectedStatus('all');
+                }
+              : user?.role === UserRole.ADMIN
+              ? handleCreateOrder
+              : undefined
+          }
+        />
       )}
-
-      <FlatList
-        data={filteredOrders}
-        renderItem={renderOrderItem}
-        keyExtractor={item => item.id}
-        contentContainerStyle={styles.listContainer}
-        ListEmptyComponent={renderEmptyState}
-      />
     </View>
   );
 }
@@ -242,83 +191,136 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
     padding: 16,
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  errorText: {
+    color: colors.error,
+    marginBottom: 16,
+    fontSize: 16,
+  },
+  retryButton: {
+    backgroundColor: colors.primary[500],
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
   header: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 20,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: colors.text.primary,
+  },
+  addButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: colors.primary[500],
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  buttonText: {
+    color: colors.white,
+    fontWeight: '500',
   },
   searchContainer: {
+    flexDirection: 'row',
+    marginBottom: 16,
+    gap: 12,
+  },
+  searchInputContainer: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderRadius: 8,
+    paddingHorizontal: 12,
     borderWidth: 1,
-    borderColor: colors.neutral['300'],
-    marginRight: 8,
-    height: 40,
+    borderColor: colors.border,
   },
   searchIcon: {
-    marginLeft: 12,
+    marginRight: 8,
+    color: colors.neutral[400],
   },
   searchInput: {
     flex: 1,
-    height: '100%',
-    paddingHorizontal: 8,
-    fontSize: 16,
+    height: 44,
+    color: colors.text.primary,
   },
-  actionContainer: {
-    marginBottom: 16,
-    alignItems: 'flex-end',
+  filterButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
   },
-  listContainer: {
-    flexGrow: 1,
+  ordersList: {
+    paddingBottom: 24,
   },
   orderCard: {
     marginBottom: 12,
+    padding: 16,
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   orderHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 12,
   },
   customerName: {
     fontSize: 16,
-    fontWeight: 'bold' as const,
-    color: colors.neutral['900'],
+    fontWeight: '600',
+    color: colors.text.primary,
   },
   deviceInfo: {
-    marginBottom: 4,
+    marginBottom: 12,
   },
   deviceName: {
-    fontSize: 15,
-    fontWeight: '500' as const,
-    color: colors.neutral['800'],
-  },
-  deviceType: {
     fontSize: 14,
-    color: colors.neutral['600'],
+    fontWeight: '500',
+    color: colors.text.primary,
     marginBottom: 4,
   },
-  issueText: {
-    fontSize: 14,
-    color: colors.neutral['700'],
-    marginBottom: 8,
+  deviceIssue: {
+    fontSize: 13,
+    color: colors.text.secondary,
   },
   orderFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 4,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
   },
-  dateText: {
+  orderDate: {
     fontSize: 12,
-    color: colors.neutral['500'],
+    color: colors.text.tertiary,
   },
-  multipleDevices: {
+  orderId: {
     fontSize: 12,
-    color: colors.primary['600'],
-    fontWeight: '500' as const,
+    color: colors.text.tertiary,
+    fontFamily: 'monospace',
   },
 });

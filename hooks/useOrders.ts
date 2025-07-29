@@ -3,18 +3,23 @@ import {
   RepairOrder, 
   CreateRepairOrderDto, 
   UpdateRepairOrderDto, 
-  UpdateRepairOrderStatusDto 
+  UpdateRepairOrderStatusDto,
+  RepairOrderResponseDto,
+  toRepairOrder
 } from '@/types/repair';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 export const useOrders = () => {
   const queryClient = useQueryClient();
   
+  // Helper function to convert RepairOrderResponseDto to RepairOrder
+  const convertToRepairOrder = (data: RepairOrderResponseDto): RepairOrder => toRepairOrder(data);
+  
   // Crear orden
   const createOrder = useMutation<RepairOrder, Error, CreateRepairOrderDto>({
     mutationFn: async (data) => {
-      const response = await api.post<RepairOrder>('/repair-orders', data);
-      return response.data;
+      const response = await api.post<RepairOrderResponseDto>('/repair-orders', data);
+      return convertToRepairOrder(response.data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['repair-orders'] });
@@ -24,8 +29,8 @@ export const useOrders = () => {
   // Actualizar orden
   const updateOrder = useMutation<RepairOrder, Error, { id: string; data: UpdateRepairOrderDto }>({
     mutationFn: async ({ id, data }) => {
-      const response = await api.patch<RepairOrder>(`/repair-orders/${id}`, data);
-      return response.data;
+      const response = await api.patch<RepairOrderResponseDto>(`/repair-orders/${id}`, data);
+      return convertToRepairOrder(response.data);
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['repair-orders'] });
@@ -38,8 +43,8 @@ export const useOrders = () => {
     return useQuery<RepairOrder, Error>({
       queryKey: ['repair-order', id],
       queryFn: async () => {
-        const response = await api.get<RepairOrder>(`/repair-orders/${id}`);
-        return response.data;
+        const response = await api.get<RepairOrderResponseDto>(`/repair-orders/${id}`);
+        return convertToRepairOrder(response.data);
       },
       enabled: !!id
     });
@@ -58,8 +63,8 @@ export const useOrders = () => {
   // Cambiar estado de orden
   const updateOrderStatus = useMutation<RepairOrder, Error, { id: string; status: UpdateRepairOrderStatusDto }>({
     mutationFn: async ({ id, status }) => {
-      const response = await api.patch<RepairOrder>(`/repair-orders/${id}/status`, status);
-      return response.data;
+      const response = await api.patch<RepairOrderResponseDto>(`/repair-orders/${id}/status`, status);
+      return convertToRepairOrder(response.data);
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['repair-orders'] });
@@ -72,8 +77,12 @@ export const useOrders = () => {
     return useQuery<RepairOrder[], Error>({
       queryKey: ['repair-orders'],
       queryFn: async () => {
-        const response = await api.get<RepairOrder[]>('/repair-orders');
-        return response.data;
+        try {
+          const response = await api.get<RepairOrderResponseDto[]>('/repair-orders');
+          return response.data.map(convertToRepairOrder);
+        } catch (error) {
+          throw error;
+        }
       }
     });
   };
