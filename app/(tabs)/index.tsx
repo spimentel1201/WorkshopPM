@@ -22,9 +22,6 @@ export default function RepairOrdersScreen() {
   const { getOrders } = useOrders();
   const { data: orders = [], isLoading, error, refetch } = getOrders();
 
-  // Debug log to see the structure of the received data
-  console.log('Orders data:', JSON.stringify(orders, null, 2));
-
   // Filter orders based on search and status
   const filteredOrders = orders.filter(order => {
     const searchTerm = searchQuery.toLowerCase();
@@ -48,8 +45,6 @@ export default function RepairOrdersScreen() {
   };
 
   const renderOrderItem = ({ item }: { item: RepairOrder }) => {
-    // Debug log for each order item
-    console.log('Rendering order item:', JSON.stringify(item, null, 2));
     
     return (
       <Pressable onPress={() => handleOrderPress(item.id)}>

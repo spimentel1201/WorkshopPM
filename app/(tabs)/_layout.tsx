@@ -37,6 +37,13 @@ export default function TabLayout() {
     checkRouter();
   }, []);
 
+  // Efecto para manejar la redirección cuando el estado de autenticación cambia
+  useEffect(() => {
+    if (!isAuthLoading && isRouterReady) {
+      if (!isAuthenticated) {router.replace('/login');}
+    }
+  }, [isAuthenticated, isAuthLoading, isRouterReady]);
+
   // Mostrar pantalla de carga mientras se verifica la autenticación o el router
   if (!isRouterReady || isAuthLoading) {
     return <LoadingScreen />;
@@ -44,7 +51,7 @@ export default function TabLayout() {
 
   // Si no está autenticado, no renderizar nada (ya que se redirigirá)
   if (!isAuthenticated) {
-    return null;
+    return <LoadingScreen />; // Cambiado a LoadingScreen para una mejor UX
   }
 
   const isAdmin = user?.role === UserRole.ADMIN;

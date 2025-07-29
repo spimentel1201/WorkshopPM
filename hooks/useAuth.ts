@@ -87,9 +87,8 @@ export const useAuth = () => {
       
       setState(newState);
       
-      return response.data.user;
+      return true; // Return true on success
     } catch (error: any) {
-      
       let errorMessage = 'Error de conexión con el servidor';
       
       if (error.response) {
@@ -108,7 +107,7 @@ export const useAuth = () => {
         error: errorMessage,
       }));
       
-      throw new Error(errorMessage);
+      return false; // Return false on failure
     }
   }, []);
 

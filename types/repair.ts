@@ -130,9 +130,6 @@ export interface RepairOrder {
 }
 
 export function toRepairOrder(dto: RepairOrderResponseDto): RepairOrder {
-  // Debug log to see the input data
-  console.log('Converting DTO to RepairOrder:', JSON.stringify(dto, null, 2));
-
   // Handle case where items array might be empty
   const firstItem = dto.items?.[0];
   
@@ -188,7 +185,6 @@ export function toRepairOrder(dto: RepairOrderResponseDto): RepairOrder {
     problemDescription: dto.description || ''
   };
 
-  console.log('Converted RepairOrder:', JSON.stringify(repairOrder, null, 2));
   return repairOrder;
 }
 

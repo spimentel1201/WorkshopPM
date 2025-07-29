@@ -12,8 +12,14 @@ export default function LoginScreen() {
 
   // Redirigir si ya está autenticado
   useEffect(() => {
+    console.log('Auth state changed - isAuthenticated:', isAuthenticated);
     if (isAuthenticated) {
-      router.replace('/(tabs)');
+      console.log('Redirecting to /(tabs)/home from useEffect');
+      // Usar setTimeout para asegurar que la navegación ocurra en el siguiente ciclo de eventos
+      const timer = setTimeout(() => {
+        router.replace('/(tabs)/home');
+      }, 0);
+      return () => clearTimeout(timer);
     }
   }, [isAuthenticated]);
 
@@ -27,11 +33,12 @@ export default function LoginScreen() {
       const success = await login({ email, password });
       
       if (success) {
-        // La redirección se manejará con el efecto cuando isAuthenticated cambie
+        // No hacemos la redirección aquí, dejamos que el useEffect lo maneje
       } else {
         Alert.alert('Error', 'Inicio de sesión fallido');
       }
     } catch (error) {
+      console.error('Login error:', error);
       Alert.alert('Error', 'Ocurrió un error al iniciar sesión. Por favor, inténtalo de nuevo.');
     }
   };
@@ -101,8 +108,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   content: {
-    padding: 24,
-    width: '100%',
+    padding: 0,
     maxWidth: 400,
     alignSelf: 'center',
   },
@@ -120,7 +126,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   input: {
-    marginBottom: 16,
+    marginBottom: 0,
   },
   button: {
     marginTop: 8,
