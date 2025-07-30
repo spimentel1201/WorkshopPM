@@ -1,4 +1,5 @@
 export interface ColorScheme {
+    purple: any;
     danger: string;
     primary: {
       50: string;
@@ -53,6 +54,7 @@ export interface ColorScheme {
   }
   
   const lightColors: ColorScheme = {
+    purple: '#a855f7',
     primary: {
       50: '#e6f1ff',
       100: '#cce3ff',
@@ -157,7 +159,8 @@ export interface ColorScheme {
       secondary: '#cbd5e1',
       tertiary: '#94a3b8',
     },
-    danger: '#ef4444'
+    danger: '#ef4444',
+    purple: '#a855f7'
   };
   
   const colors = lightColors;

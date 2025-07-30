@@ -8,6 +8,7 @@ import {
   CheckCircle,
   Clock,
   DollarSign,
+  FileText,
   Package,
   Plus,
   TrendingUp,
@@ -212,16 +213,34 @@ export default function HomeScreen() {
         <Text style={[styles.sectionTitle, { color: theme.text.primary }]}>Acciones Rápidas</Text>
         <View style={styles.actionsGrid}>
           <QuickActionCard
-            title="Nueva Orden"
+            title="Ordenes"
             icon={<Plus size={24} color={theme.white} />}
             color={theme.primary[500]}
-            onPress={() => router.push('/orders/create')}
+            onPress={() => router.push('/(tabs)')}
+          />
+          <QuickActionCard
+            title="Presupuestos"
+            icon={<FileText size={24} color={theme.white} />}
+            color={theme.secondary[500]}
+            onPress={() => router.push('/budgets')}
+          />
+          <QuickActionCard
+            title="Ventas"
+            icon={<DollarSign size={24} color={theme.white} />}
+            color={theme.success}
+            onPress={() => router.push('/pos')}
           />
           <QuickActionCard
             title="Inventario"
             icon={<Package size={24} color={theme.white} />}
-            color={theme.secondary[500]}
+            color={theme.info}
             onPress={() => router.push('/(tabs)/inventory')}
+          />
+          <QuickActionCard
+            title="Reportes"
+            icon={<BarChart3 size={24} color={theme.white} />}
+            color={theme.error}
+            onPress={() => router.push('/(tabs)')}
           />
           {user?.role === UserRole.ADMIN && (
             <QuickActionCard
@@ -231,12 +250,6 @@ export default function HomeScreen() {
               onPress={() => router.push('/(tabs)/users')}
             />
           )}
-          <QuickActionCard
-            title="Reportes"
-            icon={<BarChart3 size={24} color={theme.white} />}
-            color={theme.warning}
-            onPress={() => {/* Navigate to reports */}}
-          />
         </View>
       </View>
 

@@ -91,28 +91,29 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => <ClipboardList size={24} color={color} />,
         }}
       />
+      
+      {/* Páginas ocultas de la barra de pestañas */}
       <Tabs.Screen
         name="budgets"
         options={{
-          title: "Presupuestos",
-          tabBarIcon: ({ color }) => <FileText size={24} color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="pos"
-        options={{
-          title: "Ventas",
-          tabBarIcon: ({ color }) => <ShoppingCart size={24} color={color} />,
+          href: null, // Esto oculta la pestaña pero mantiene la ruta accesible
         }}
       />
       <Tabs.Screen
         name="inventory"
         options={{
-          title: "Inventario",
-          tabBarIcon: ({ color }) => <Package size={24} color={color} />,
+          href: null,
         }}
       />
-      {user?.role === UserRole.ADMIN && (
+      <Tabs.Screen
+        name="pos"
+        options={{
+          href: null,
+        }}
+      />
+      
+      {/* Pestaña de Usuarios - Solo visible para administradores */}
+      {user?.role === UserRole.ADMIN ? (
         <Tabs.Screen
           name="users"
           options={{
@@ -120,7 +121,16 @@ export default function TabLayout() {
             tabBarIcon: ({ color }) => <Users size={24} color={color} />,
           }}
         />
+      ) : (
+        // Para roles no administradores, ocultar completamente la pestaña
+        <Tabs.Screen
+          name="users"
+          options={{
+            href: null,
+          }}
+        />
       )}
+      
       <Tabs.Screen
         name="settings"
         options={{
