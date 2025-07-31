@@ -1,17 +1,23 @@
 {
   "expo": {
     "name": "WorkshopPM",
-    "slug": "WorkshopPM",
+    "slug": "electro-pimentel",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "workshoppm",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "updates": {
+      "fallbackToCacheTimeout": 0,
+      "url": "https://u.expo.dev/a6a5e624-d541-413b-9b0c-35172bc891de"
+    },
     "ios": {
       "supportsTablet": true
     },
     "android": {
+      "versionCode": 1,
+      "package": "com.tudominio.workshoppm",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
@@ -30,8 +36,16 @@
         }
       }
     },
+    "extra": {
+      "eas": {
+        "projectId": "a6a5e624-d541-413b-9b0c-35172bc891de"
+      }
+    },
     "plugins": [
       "expo-router",
+      {
+        "origin": "https://workshop-a3u1jiax2-sonny-pimentel-mogrovejos-projects.vercel.app"
+      },
       [
         "expo-splash-screen",
         {
@@ -47,9 +61,15 @@
       "typedRoutes": true
     },
     "build": {
-        "babel": {
-          "include": ["react-native-svg"]
-        }
+      "babel": {
+        "include": [
+          "react-native-svg"
+        ]
       }
+    },
+    "owner": "thegrozzo",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    }
   }
 }
