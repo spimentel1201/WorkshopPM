@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, ScrollView, Alert } from 'react-native';
-import { Stack, router } from 'expo-router';
-import { Plus, X, Check, ChevronDown, ChevronUp } from 'lucide-react-native';
+import { Stack, useLocalSearchParams, router } from 'expo-router';
+import { Plus, X, Check, Save, ArrowLeft } from 'lucide-react-native';
 
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -11,6 +11,7 @@ import { useQuotes } from '@/hooks/useQuotes';
 import { useAuth } from '@/hooks/useAuth';
 import { useOrders } from '@/hooks/useOrders';
 import colors from '@/constants/colors';
+import { QuoteStatus } from '@/types/quote';
 
 type QuoteItem = {
   id: string;
@@ -19,24 +20,37 @@ type QuoteItem = {
   price: number;
 };
 
-export default function CreateBudgetScreen() {
+export default function EditBudgetScreen() {
+  const { id } = useLocalSearchParams<{ id: string }>();
   const { user } = useAuth();
-  const { createQuote } = useQuotes();
+  const { getQuoteById, updateQuote, updateQuoteStatus } = useQuotes();
   const { getOrders } = useOrders();
 
+  const { data: quote, isLoading } = getQuoteById(id || '');
   const { data: orders = [] } = getOrders();
 
   const [orderId, setOrderId] = useState('');
-  const [items, setItems] = useState<QuoteItem[]>([
-    { id: Date.now().toString(), description: '', quantity: 1, price: 0 },
-  ]);
+  const [items, setItems] = useState<QuoteItem[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const selectedOrder = orders.find((ro) => ro.id === orderId);
+  // Initialize form with quote data
+  useEffect(() => {
+    if (quote) {
+      setOrderId(quote.repairOrderId);
+      setItems(quote.items.map(item => ({
+        id: item.id || Date.now().toString(),
+        description: item.description,
+        quantity: item.quantity,
+        price: item.price,
+      })));
+    }
+  }, [quote]);
+
+  const selectedOrder = orders.find(order => order.id === orderId);
 
   const totalAmount = items.reduce((sum, item) => {
-    return sum + item.quantity * item.price;
+    return sum + (item.quantity * item.price);
   }, 0);
 
   const validateForm = () => {
@@ -68,7 +82,7 @@ export default function CreateBudgetScreen() {
 
   const handleRemoveItem = (id: string) => {
     if (items.length > 1) {
-      setItems(items.filter((item) => item.id !== id));
+      setItems(items.filter(item => item.id !== id));
     } else {
       // Reset the only item instead of removing it
       setItems([{ id: Date.now().toString(), description: '', quantity: 1, price: 0 }]);
@@ -87,48 +101,98 @@ export default function CreateBudgetScreen() {
   };
 
   const handleSubmit = async () => {
-    if (!validateForm()) return;
+    if (!validateForm() || !quote) return;
 
     try {
       setIsSubmitting(true);
+      console.log('Starting quote update...');
 
-      if (!selectedOrder?.customer?.id) {
-        throw new Error('No se pudo obtener la información del cliente');
-      }
+      // Recalculate total amount based on current items
+      const recalculatedTotal = items.reduce(
+        (sum, item) => sum + (item.quantity * item.price),
+        0
+      );
 
-      await createQuote.mutateAsync({
-        repairOrderId: selectedOrder.id,
-        customerId: selectedOrder.customer.id,
-        items: items.map(({ id, ...rest }) => rest), // Remove temp IDs
-        totalAmount,
+      // Prepare the data in the exact format expected by the API
+      const updatePayload = {
+        repairOrderId: quote.repairOrderId,
+        customerId: quote.customerId,
+        technicianId: quote.technicianId,
+        status: quote.status,
+        totalAmount: recalculatedTotal, // Use the recalculated total
+        items: items.map(item => ({
+          description: item.description,
+          quantity: item.quantity,
+          price: item.price
+        }))
+      };
+      
+      console.log('Sending update payload:', JSON.stringify(updatePayload, null, 2));
+      
+      const response = await updateQuote.mutateAsync({
+        id: quote.id,
+        data: updatePayload
       });
+
+      console.log('Update response:', response);
 
       Alert.alert(
         'Éxito',
-        'El presupuesto ha sido creado correctamente',
+        'El presupuesto ha sido actualizado correctamente',
         [
           {
             text: 'Aceptar',
-            onPress: () => router.replace('/(tabs)/budgets'),
+            onPress: () => {
+              // Invalidate queries to refresh the data
+              // queryClient.invalidateQueries({ queryKey: ['quotes'] });
+              // queryClient.invalidateQueries({ queryKey: ['quotes', quote.id] });
+              router.back();
+            },
           },
         ],
       );
-    } catch (error) {
-      console.error('Error creating quote:', error);
+    } catch (error: any) {
+      console.error('Error updating quote:', error);
+      console.error('Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+      });
+      
       Alert.alert(
         'Error',
-        'No se pudo crear el presupuesto. Por favor, intente nuevamente.',
+        `No se pudo actualizar el presupuesto: ${error.response?.data?.message || error.message}`,
       );
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text>Cargando presupuesto...</Text>
+      </View>
+    );
+  }
+
+  if (!quote) {
+    return (
+      <View style={styles.errorContainer}>
+        <Text>No se pudo cargar el presupuesto</Text>
+        <Button onPress={() => router.back()} variant="outline" style={{ marginTop: 16 }}>
+          <ArrowLeft size={16} style={{ marginRight: 8 }} />
+          Volver
+        </Button>
+      </View>
+    );
+  }
+
   return (
     <ScrollView style={styles.container}>
       <Stack.Screen
         options={{
-          title: 'Nuevo Presupuesto',
+          title: 'Editar Presupuesto',
           headerBackTitle: 'Cancelar',
         }}
       />
@@ -137,47 +201,28 @@ export default function CreateBudgetScreen() {
         <Text style={styles.sectionTitle}>Información de la Orden</Text>
 
         <View style={styles.formGroup}>
-          <Select
-            label="Orden de Reparación"
-            placeholder="Seleccione una orden"
-            value={orderId}
-            onValueChange={setOrderId}
-            error={errors.orderId}
-            options={orders.map((order) => ({
-              label: `#${order.id.slice(0, 8).toUpperCase()} - ${order.customer?.name || 'Cliente desconocido'}`,
-              value: order.id,
-            }))}
-          />
+          <Text style={styles.infoLabel}>Orden #</Text>
+          <Text style={styles.infoValue}>{quote.repairOrderId}</Text>
         </View>
 
-        {selectedOrder && (
-          <View style={styles.orderInfo}>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Cliente:</Text>
-              <Text style={styles.infoValue}>
-                {selectedOrder.customer?.name || 'No especificado'}
-              </Text>
-            </View>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Dispositivo:</Text>
-              <Text style={styles.infoValue}>
-                {selectedOrder.devices?.[0].brand + ' ' + selectedOrder.devices?.[0].model || 'No especificado'}
-              </Text>
-            </View>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Problema reportado:</Text>
-              <Text style={[styles.infoValue, styles.multiline]}>
-                {selectedOrder.devices?.[0].reportedIssue || 'No especificado'}
-              </Text>
-            </View>
-          </View>
-        )}
+        <View style={styles.infoRow}>
+          <Text style={styles.infoLabel}>Cliente:</Text>
+          <Text style={styles.infoValue}>
+            {quote.customer?.name || 'No especificado'}
+          </Text>
+        </View>
+        <View style={styles.infoRow}>
+          <Text style={styles.infoLabel}>Dispositivo:</Text>
+          <Text style={styles.infoValue}>
+            {quote.repairOrder?.device || 'No especificado'}
+          </Text>
+        </View>
       </Card>
 
       <Card style={styles.section}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Ítems del Presupuesto</Text>
-          <Button
+          <Button 
             onPress={handleAddItem}
             variant="outline"
             size="sm"
@@ -193,7 +238,7 @@ export default function CreateBudgetScreen() {
               <View style={styles.itemHeader}>
                 <Text style={styles.itemNumber}>Ítem {index + 1}</Text>
                 {items.length > 1 && (
-                  <Button
+                  <Button 
                     onPress={() => handleRemoveItem(item.id)}
                     variant="ghost"
                     size="sm"
@@ -261,13 +306,13 @@ export default function CreateBudgetScreen() {
       </Card>
 
       <View style={styles.footer}>
-        <Button
+        <Button 
           onPress={handleSubmit}
           loading={isSubmitting}
           disabled={isSubmitting}
-          leftIcon={<Check size={20} />}
+          leftIcon={<Save size={20} />}
         >
-          Guardar Presupuesto
+          Guardar Cambios
         </Button>
       </View>
     </ScrollView>
@@ -278,11 +323,25 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
-    padding: 16,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
   },
   section: {
-    marginBottom: 16,
+    margin: 16,
+    marginBottom: 0,
     padding: 16,
+    backgroundColor: colors.white,
+    borderRadius: 8,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -291,39 +350,30 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
-    color: colors.gray[900],
+    color: colors.primary[900],
     marginBottom: 8,
   },
   formGroup: {
     marginBottom: 16,
   },
-  orderInfo: {
-    marginTop: 8,
-    padding: 12,
-    backgroundColor: colors.gray[50],
-    borderRadius: 8,
-  },
   infoRow: {
     flexDirection: 'row',
-    marginBottom: 8,
+    marginBottom: 12,
   },
   infoLabel: {
-    width: 120,
+    width: 100,
     fontSize: 14,
-    color: colors.gray[600],
+    color: colors.primary[600],
   },
   infoValue: {
     flex: 1,
     fontSize: 14,
-    color: colors.gray[900],
-  },
-  multiline: {
-    flex: 1,
+    color: colors.primary[900],
   },
   itemsList: {
-    marginBottom: 16,
+    marginTop: 8,
   },
   itemCard: {
     backgroundColor: colors.white,
@@ -331,7 +381,7 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: colors.gray[200],
+    borderColor: colors.primary[100],
   },
   itemHeader: {
     flexDirection: 'row',
@@ -342,7 +392,7 @@ const styles = StyleSheet.create({
   itemNumber: {
     fontSize: 14,
     fontWeight: '600',
-    color: colors.gray[900],
+    color: colors.primary[900],
   },
   removeButton: {
     padding: 4,
@@ -358,17 +408,17 @@ const styles = StyleSheet.create({
     marginTop: 8,
     paddingTop: 8,
     borderTopWidth: 1,
-    borderTopColor: colors.gray[100],
+    borderTopColor: colors.primary[100],
   },
   itemTotalLabel: {
     fontSize: 14,
-    color: colors.gray[600],
+    color: colors.primary[600],
     marginRight: 8,
   },
   itemTotalAmount: {
     fontSize: 16,
     fontWeight: '600',
-    color: colors.gray[900],
+    color: colors.primary[900],
   },
   totalSection: {
     flexDirection: 'row',
@@ -377,19 +427,20 @@ const styles = StyleSheet.create({
     marginTop: 16,
     paddingTop: 16,
     borderTopWidth: 1,
-    borderTopColor: colors.gray[200],
+    borderTopColor: colors.primary[200],
   },
   totalLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: colors.gray[900],
+    color: colors.primary[900],
   },
   totalAmount: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 'bold',
     color: colors.primary[700],
   },
   footer: {
+    margin: 16,
     marginTop: 24,
     marginBottom: 32,
   },

@@ -1,184 +1,172 @@
-import { useState } from 'react';
-import { StyleSheet, Text, View, FlatList, TextInput, Pressable } from 'react-native';
-import { useQuery } from '@tanstack/react-query';
+import { useState, useMemo } from 'react';
+import { StyleSheet, Text, View, FlatList, Pressable, TextInput } from 'react-native';
 import { router } from 'expo-router';
-import { Search, Plus, FileText, DollarSign, CheckCircle, XCircle } from 'lucide-react-native';
+import { Search, Plus, FileText, CheckCircle, XCircle, Filter } from 'lucide-react-native';
 
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/EmptyState';
-import { Budget } from '@/types/repair';
+import { useQuotes } from '@/hooks/useQuotes';
 import { useAuth } from '@/hooks/useAuth';
 import { UserRole } from '@/types/auth';
 import colors from '@/constants/colors';
-
-// Mock budgets data
-const mockBudgets: Budget[] = [
-  {
-    id: '1',
-    repairOrderId: '1',
-    laborCost: 50,
-    partsCost: 80,
-    additionalCosts: 10,
-    additionalCostsDescription: 'Limpieza especial',
-    totalCost: 140,
-    approved: false,
-    createdAt: '2025-07-10T15:30:00Z',
-    updatedAt: '2025-07-10T15:30:00Z',
-  },
-  {
-    id: '2',
-    repairOrderId: '2',
-    laborCost: 75,
-    partsCost: 120,
-    additionalCosts: 0,
-    totalCost: 195,
-    approved: true,
-    createdAt: '2025-07-09T11:20:00Z',
-    updatedAt: '2025-07-11T14:45:00Z',
-  },
-  {
-    id: '3',
-    repairOrderId: '3',
-    laborCost: 60,
-    partsCost: 45,
-    additionalCosts: 15,
-    additionalCostsDescription: 'Transporte',
-    totalCost: 120,
-    approved: true,
-    createdAt: '2025-07-08T09:15:00Z',
-    updatedAt: '2025-07-12T10:30:00Z',
-  },
-];
-
-// Mock repair orders for reference
-const mockOrdersRef = {
-  '1': { customerName: 'Juan Pérez', deviceInfo: 'Samsung Galaxy S21' },
-  '2': { customerName: 'María López', deviceInfo: 'HP Pavilion' },
-  '3': { customerName: 'Carlos Rodríguez', deviceInfo: 'LG Smart TV 55"' },
-};
+import { QuoteStatus } from '@/types/quote';
 
 export default function BudgetsScreen() {
   const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
+  const { getQuotes, updateQuoteStatus } = useQuotes();
+  
+  const { data: quotes, isLoading, error } = getQuotes;
 
-  // Fetch budgets
-  const { data: budgets, isLoading } = useQuery({
-    queryKey: ['budgets'],
-    queryFn: async () => {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      return mockBudgets;
-    },
-  });
-
-  // Filter budgets based on search query
-  const filteredBudgets = budgets?.filter(budget => {
-    const orderRef = mockOrdersRef[budget.repairOrderId as keyof typeof mockOrdersRef];
-    return orderRef?.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-           orderRef?.deviceInfo.toLowerCase().includes(searchQuery.toLowerCase()) ||
-           budget.id.includes(searchQuery);
-  });
+  // Filter quotes based on search query
+  const filteredQuotes = useMemo(() => {
+    if (!quotes) return [];
+    return quotes.filter(quote => 
+      quote.customer?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      quote.repairOrder?.device?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      quote.id.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [quotes, searchQuery]);
 
   const handleCreateBudget = () => {
     router.push('/budgets/create');
   };
 
-  const handleBudgetPress = (budgetId: string) => {
-    router.push(`/budgets/${budgetId}`);
+  const handleStatusChange = (quoteId: string, status: QuoteStatus) => {
+    updateQuoteStatus.mutate({ id: quoteId, status });
   };
 
-  const renderBudgetItem = ({ item }: { item: Budget }) => {
-    const orderRef = mockOrdersRef[item.repairOrderId as keyof typeof mockOrdersRef];
+  const getStatusBadge = (status: QuoteStatus) => {
+    const statusConfig = {
+      [QuoteStatus.PENDING]: { label: 'Pendiente', color: colors.orange[500] },
+      [QuoteStatus.APPROVED]: { label: 'Aprobado', color: colors.green[500] },
+      [QuoteStatus.REJECTED]: { label: 'Rechazado', color: colors.red[500] },
+      [QuoteStatus.EXPIRED]: { label: 'Expirado', color: colors.gray[500] },
+    };
     
-    return (
-      <Pressable onPress={() => handleBudgetPress(item.id)}>
-        <Card style={styles.budgetCard}>
-          <View style={styles.budgetHeader}>
-            <View style={styles.budgetInfo}>
-              <Text style={styles.customerName}>{orderRef?.customerName || 'Cliente'}</Text>
-              <Text style={styles.deviceInfo}>{orderRef?.deviceInfo || 'Dispositivo'}</Text>
-            </View>
-            <Badge 
-              variant={item.approved ? 'success' : 'warning'} 
-              text={item.approved ? 'Aprobado' : 'Pendiente'} 
-            />
-          </View>
-          
-          <View style={styles.costBreakdown}>
-            <View style={styles.costItem}>
-              <Text style={styles.costLabel}>Mano de obra:</Text>
-              <Text style={styles.costValue}>${item.laborCost.toFixed(2)}</Text>
-            </View>
-            <View style={styles.costItem}>
-              <Text style={styles.costLabel}>Repuestos:</Text>
-              <Text style={styles.costValue}>${item.partsCost.toFixed(2)}</Text>
-            </View>
-            {item.additionalCosts > 0 && (
-              <View style={styles.costItem}>
-                <Text style={styles.costLabel}>Adicionales:</Text>
-                <Text style={styles.costValue}>${item.additionalCosts.toFixed(2)}</Text>
-              </View>
-            )}
-          </View>
-          
-          <View style={styles.budgetFooter}>
-            <View style={styles.totalSection}>
-              <Text style={styles.totalLabel}>Total:</Text>
-              <Text style={styles.totalAmount}>${item.totalCost.toFixed(2)}</Text>
-            </View>
-            <Text style={styles.dateText}>
-              {new Date(item.createdAt).toLocaleDateString()}
-            </Text>
-          </View>
-        </Card>
-      </Pressable>
-    );
+    return statusConfig[status] || { label: status, color: colors.gray[500] };
   };
 
-  const renderEmptyState = () => (
-    <EmptyState
-      icon={<FileText size={48} color={colors.neutral[400]} />}
-      title="No hay presupuestos"
-      description="Crea un nuevo presupuesto para una orden de reparación."
-      actionLabel={user?.role === UserRole.ADMIN ? "Crear Presupuesto" : undefined}
-      onAction={user?.role === UserRole.ADMIN ? handleCreateBudget : undefined}
-    />
-  );
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text>Cargando presupuestos...</Text>
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.errorContainer}>
+        <Text style={styles.errorText}>Error al cargar los presupuestos</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <View style={styles.searchContainer}>
-          <Search size={20} color={colors.neutral[500]} style={styles.searchIcon} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Buscar por cliente, dispositivo..."
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-        </View>
+        <Text style={styles.title}>Presupuestos</Text>
+        <Button onPress={handleCreateBudget} variant="primary">
+          <Plus size={20} color="white" />
+          <Text style={styles.buttonText}>Nuevo Presupuesto</Text>
+        </Button>
       </View>
 
-      {user?.role === UserRole.ADMIN && (
-        <View style={styles.actionContainer}>
-          <Button
-            onPress={handleCreateBudget}
-            leftIcon={<Plus size={18} color={colors.white} />}
-          >
-            Nuevo Presupuesto
-          </Button>
+      <View style={styles.searchContainer}>
+        <View style={styles.searchInputContainer}>
+            <Search size={20} color={colors.neutral[600]} style={styles.searchIcon} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Buscar presupuestos..."
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholderTextColor={colors.neutral[600]}
+            />
         </View>
-      )}
+        <Pressable 
+          style={styles.filterButton}
+          onPress={() => {
+            // TODO: Implement filter modal
+          }}
+        >
+          <Filter size={20} color={colors.primary[500]} />
+        </Pressable>
+      </View>
 
-      <FlatList
-        data={filteredBudgets}
-        renderItem={renderBudgetItem}
-        keyExtractor={item => item.id}
-        contentContainerStyle={styles.listContainer}
-        ListEmptyComponent={renderEmptyState}
-      />
+      {filteredQuotes?.length === 0 ? (
+        <EmptyState
+          icon={<FileText size={48} color={colors.primary[400]} />}
+          title="No hay presupuestos"
+          description={searchQuery ? 'No se encontraron resultados para tu búsqueda' : 'Comienza creando un nuevo presupuesto'}
+          onAction={handleCreateBudget}
+        />
+      ) : (
+        <FlatList
+          data={filteredQuotes}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.listContent}
+          renderItem={({ item }) => {
+            const status = getStatusBadge(item.status);
+            return (
+              <Pressable onPress={() => router.push(`/budgets/${item.id}`)}>
+                <Card style={styles.quoteCard}>
+                  <View style={styles.quoteHeader}>
+                    <Text style={styles.customerName}>
+                      {item.customer?.name || 'Cliente no especificado'}
+                    </Text>
+                    <Badge text={status.label} variant="primary" />
+                  </View>
+                  
+                  <View style={styles.quoteInfo}>
+                    <Text style={styles.device}>
+                      {item.repairOrder?.device || 'Dispositivo no especificado'}
+                    </Text>
+                    <Text style={styles.quoteId}>
+                      #{item.id.slice(0, 6).toUpperCase()}
+                    </Text>
+                  </View>
+                  
+                  <View style={styles.quoteFooter}>
+                    <Text style={styles.amount}>
+                      Total: ${item.totalAmount.toFixed(2)}
+                    </Text>
+                    
+                    {user?.role === UserRole.TECHNICIAN && item.status === QuoteStatus.PENDING && (
+                      <View style={styles.actions}>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onPress={() => {
+                            handleStatusChange(item.id, QuoteStatus.APPROVED);
+                          }}
+                          style={styles.actionButton}
+                        >
+                          <CheckCircle size={16} style={{ marginRight: 4 }} />
+                          Aprobar
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onPress={() => {
+                            handleStatusChange(item.id, QuoteStatus.REJECTED);
+                          }}
+                          style={[styles.actionButton, { borderColor: colors.red[500] }]}
+                        >
+                          <XCircle size={16} style={{ marginRight: 4 }} />
+                          Rechazar
+                        </Button>
+                      </View>
+                    )}
+                  </View>
+                </Card>
+              </Pressable>
+            );
+          }}
+        />
+      )}
     </View>
   );
 }
@@ -190,109 +178,129 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 16,
   },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: colors.primary[900],
+  },
   searchContainer: {
+    flexDirection: 'row',
+    marginBottom: 16,
+    gap: 12,
+  },
+  searchInputContainer: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.white,
     borderRadius: 8,
+    paddingHorizontal: 12,
     borderWidth: 1,
     borderColor: colors.neutral[300],
-    height: 40,
   },
   searchIcon: {
-    marginLeft: 12,
+    marginRight: 8,
   },
   searchInput: {
     flex: 1,
-    height: '100%',
-    paddingHorizontal: 8,
-    fontSize: 16,
+    height: 44,
+    color: colors.text.primary,
   },
-  actionContainer: {
-    marginBottom: 16,
-    alignItems: 'flex-end',
+  filterButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.primary[200],
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.white,
   },
-  listContainer: {
-    flexGrow: 1,
+  listContent: {
+    paddingBottom: 16,
   },
-  budgetCard: {
+  quoteCard: {
     marginBottom: 12,
     padding: 16,
+    borderRadius: 8,
+    backgroundColor: colors.white,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
-  budgetHeader: {
+  quoteHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     marginBottom: 12,
-  },
-  budgetInfo: {
-    flex: 1,
-    marginRight: 8,
   },
   customerName: {
     fontSize: 16,
-    fontWeight: 'bold' as const,
-    color: colors.neutral[900],
-    marginBottom: 4,
-    flexShrink: 1,
+    fontWeight: '600',
+    color: colors.primary[900],
+    flex: 1,
+    marginRight: 8,
   },
-  deviceInfo: {
-    fontSize: 14,
-    color: colors.neutral[600],
-    flexShrink: 1,
-  },
-  costBreakdown: {
+  quoteInfo: {
     marginBottom: 12,
-    width: '100%',
   },
-  costItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 6,
-    flexWrap: 'wrap',
-  },
-  costLabel: {
+  device: {
     fontSize: 14,
     color: colors.neutral[700],
-    marginRight: 8,
-    flexShrink: 0,
+    marginBottom: 4,
   },
-  costValue: {
-    fontSize: 14,
-    fontWeight: '500' as const,
-    color: colors.neutral[900],
-    flexShrink: 0,
+  quoteId: {
+    fontSize: 13,
+    color: colors.neutral[500],
+    fontFamily: 'monospace',
   },
-  budgetFooter: {
+  quoteFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 12,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: colors.neutral[200],
-    flexWrap: 'wrap',
+    borderTopColor: colors.neutral[100],
   },
-  totalSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  totalLabel: {
-    fontSize: 16,
-    fontWeight: '600' as const,
-    color: colors.neutral[800],
-    marginRight: 8,
-  },
-  totalAmount: {
-    fontSize: 18,
-    fontWeight: 'bold' as const,
+  amount: {
+    fontSize: 15,
+    fontWeight: '600',
     color: colors.primary[700],
   },
-  dateText: {
-    fontSize: 12,
-    color: colors.neutral[500],
+  actions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  actionButton: {
+    paddingHorizontal: 12,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  errorText: {
+    color: colors.red[500],
+    fontSize: 16,
+    textAlign: 'center',
+  },
+  buttonText: {
+    color: colors.white,
+    fontWeight: '600',
+    marginLeft: 8,
   },
 });

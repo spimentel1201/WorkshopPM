@@ -41,22 +41,6 @@
         "projectId": "a6a5e624-d541-413b-9b0c-35172bc891de"
       }
     },
-    "plugins": [
-      "expo-router",
-      {
-        "origin": "https://workshop-a3u1jiax2-sonny-pimentel-mogrovejos-projects.vercel.app"
-      },
-      [
-        "expo-splash-screen",
-        {
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
-          "resizeMode": "contain",
-          "backgroundColor": "#ffffff"
-        }
-      ],
-      "expo-secure-store"
-    ],
     "experiments": {
       "typedRoutes": true
     },

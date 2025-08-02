@@ -222,7 +222,7 @@ export default function HomeScreen() {
             title="Presupuestos"
             icon={<FileText size={24} color={theme.white} />}
             color={theme.secondary[500]}
-            onPress={() => router.push('/budgets')}
+            onPress={() => router.push('/(tabs)/budgets')}
           />
           <QuickActionCard
             title="Ventas"

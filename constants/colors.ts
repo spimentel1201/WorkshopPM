@@ -1,4 +1,8 @@
 export interface ColorScheme {
+    gray: any;
+    green: any;
+    red: any;
+    orange: any;
     purple: any;
     danger: string;
     primary: {
@@ -54,6 +58,10 @@ export interface ColorScheme {
   }
   
   const lightColors: ColorScheme = {
+    gray: '#f8fafc',
+    green: '#22c55e',
+    red: '#ef4444',
+    orange: '#f59e0b',
     purple: '#a855f7',
     primary: {
       50: '#e6f1ff',
@@ -109,6 +117,11 @@ export interface ColorScheme {
   };
   
   const darkColors: ColorScheme = {
+    gray: '#0f172a',
+    green: '#22c55e',
+    red: '#ef4444',
+    orange: '#f59e0b',
+    purple: '#a855f7',
     primary: {
       50: '#001733',
       100: '#002d66',
@@ -160,7 +173,6 @@ export interface ColorScheme {
       tertiary: '#94a3b8',
     },
     danger: '#ef4444',
-    purple: '#a855f7'
   };
   
   const colors = lightColors;
