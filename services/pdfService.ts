@@ -292,7 +292,16 @@ const generateAndSharePDF = async (html: string, fileName: string) => {
     });
 
     // Share the PDF
-    if (Platform.OS !== 'web') {
+    if (Platform.OS === 'web') {
+      // For web, create a download link
+      const link = document.createElement('a');
+      link.href = newUri;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } else {
+      // For mobile, use the sharing dialog
       await Sharing.shareAsync(newUri, {
         mimeType: 'application/pdf',
         dialogTitle: 'Compartir documento',
