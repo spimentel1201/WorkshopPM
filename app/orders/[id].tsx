@@ -1,7 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { AlertCircle, CheckCircle, Clock, Edit, Mail, MessageCircle, Phone, UserPlus } from 'lucide-react-native';
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, View, Platform, TouchableOpacity, Modal } from 'react-native';
 import { useActionSheet } from '@expo/react-native-action-sheet';
 
@@ -13,8 +13,10 @@ import colors from '@/constants/colors';
 import { useAuth } from '@/hooks/useAuth';
 import { useOrders } from '@/hooks/useOrders';
 import { UserRole } from '@/types/auth';
-import { RepairOrderStatus } from '@/types/repair';
+import { RepairOrder, RepairOrderStatus } from '@/types/repair';
 import { getToken } from '@/src/lib/storage';
+import { usePDFGenerator } from '@/hooks/usePDFGenerator';
+import { PDFSettingsModal } from '@/components/PDFSettingsModal';
 
 export default function OrderDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -329,6 +331,31 @@ export default function OrderDetailsScreen() {
     }
   };
 
+  const {
+    isLoading: isGeneratingPDF,
+    generateRepairOrderPDF,
+    showSettingsModal,
+    isSettingsModalVisible,
+    closeSettingsModal,
+    saveSettings,
+    settings: pdfSettings,
+    loadSettings,
+  } = usePDFGenerator();
+
+  // Load PDF settings when component mounts
+  useEffect(() => {
+    loadSettings();
+  }, []);
+
+  const handleGeneratePDF = async () => {
+    if (!order) return;
+    
+    const result = await generateRepairOrderPDF(order as RepairOrder);
+    if (result.success) {
+      Alert.alert('Éxito', 'PDF generado correctamente');
+    }
+  };
+
   if (isLoading) {
     return (
       <View style={styles.emptyState}>
@@ -601,6 +628,31 @@ export default function OrderDetailsScreen() {
           </View>
         </Modal>
       )}
+      
+      <View style={styles.footer}>
+        <Button 
+          onPress={handleGeneratePDF}
+          loading={isGeneratingPDF}
+          style={[styles.actionButton, { marginBottom: 10 }]}
+        >
+          Generar PDF
+        </Button>
+        
+        <Button 
+          onPress={showSettingsModal}
+          variant="outline"
+          style={styles.actionButton}
+        >
+          Configuración PDF
+        </Button>
+      </View>
+
+      <PDFSettingsModal
+        visible={isSettingsModalVisible}
+        onClose={closeSettingsModal}
+        onSave={saveSettings}
+        initialSettings={pdfSettings}
+      />
     </View>
   );
 }
@@ -787,5 +839,11 @@ const styles = StyleSheet.create({
   modalButtons: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
+  },
+  footer: {
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+    backgroundColor: '#fff',
   },
 });
