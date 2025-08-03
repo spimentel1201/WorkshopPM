@@ -71,7 +71,6 @@ function RootLayoutNav() {
       <StatusBar style={isDark ? "light" : "dark"} />
       <Stack 
         screenOptions={{ 
-          headerShown: false,
           animation: 'fade',
           gestureEnabled: false, // Deshabilitar gestos para evitar problemas de navegación
         }}
@@ -84,11 +83,11 @@ function RootLayoutNav() {
       >
         <Stack.Screen 
           name="(tabs)" 
-          redirect={!isAuthenticated}
+          options={{ headerShown: false }}
         />
         <Stack.Screen 
           name="login" 
-          redirect={isAuthenticated}
+          options={{ headerShown: false }}
         />
       </Stack>
     </>

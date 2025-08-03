@@ -110,6 +110,7 @@ export interface RepairOrder {
   updatedAt: string;
   items: RepairOrderItem[];
   customer: {
+    documentNumber?: string;
     id: string;
     name: string;
     email: string;
@@ -174,7 +175,8 @@ export function toRepairOrder(dto: RepairOrderResponseDto): RepairOrder {
       id: '',
       name: 'Cliente',
       email: '',
-      phone: ''
+      phone: '',
+      documentNumber: ''
     },
     technician: dto.technician || {
       id: '',

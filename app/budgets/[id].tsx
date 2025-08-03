@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, ScrollView, Alert } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, Alert, Platform } from 'react-native';
 import { Stack, useLocalSearchParams, router } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Edit, CheckCircle, XCircle, MessageCircle, Phone, Mail, Clock, Printer, Share2, FileText, ArrowLeft } from 'lucide-react-native';
@@ -14,6 +14,7 @@ import { UserRole } from '@/types/auth';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale/es';
 import { QuoteStatus } from '@/types/quote';
+import { usePDFGenerator } from '@/hooks/usePDFGenerator';
 
 export default function BudgetDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -25,6 +26,9 @@ export default function BudgetDetailsScreen() {
   
   const [isApproving, setIsApproving] = useState(false);
   const [isRejecting, setIsRejecting] = useState(false);
+  
+  // Obtener las funciones de generación de PDF
+  const { generateQuotePDF, isLoading: isGeneratingPDF } = usePDFGenerator();
 
   const handleStatusChange = async (status: QuoteStatus) => {
     if (!id) return;
@@ -53,14 +57,42 @@ export default function BudgetDetailsScreen() {
     }
   };
 
-  const handlePrint = () => {
-    // TODO: Implement print functionality
-    Alert.alert('Imprimir', 'Funcionalidad de impresión en desarrollo');
+  const handlePrint = async () => {
+    if (!quote) return;
+    
+    try {
+      const result = await generateQuotePDF(quote);
+      if (!result.success) {
+        throw new Error('Error al generar el PDF');
+      }
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      Alert.alert('Error', 'No se pudo generar el PDF del presupuesto');
+    }
   };
 
-  const handleShare = () => {
-    // TODO: Implement share functionality
-    Alert.alert('Compartir', 'Funcionalidad de compartir en desarrollo');
+  const handleShare = async () => {
+    if (!quote) return;
+    
+    try {
+      const result = await generateQuotePDF(quote);
+      if (!result.success) {
+        throw new Error('Error al generar el PDF');
+      }
+      
+      // En web, el PDF ya se abre en una nueva pestaña
+      if (Platform.OS !== 'web') {
+        // Aquí podrías implementar la funcionalidad de compartir en dispositivos móviles
+        // usando expo-sharing o alguna otra librería
+        Alert.alert(
+          'Compartir PDF', 
+          'El PDF se ha generado correctamente. Usa el botón de compartir de tu dispositivo para enviarlo.'
+        );
+      }
+    } catch (error) {
+      console.error('Error sharing PDF:', error);
+      Alert.alert('Error', 'No se pudo compartir el PDF del presupuesto');
+    }
   };
 
   const handleEdit = (id: string) => {
@@ -106,172 +138,177 @@ export default function BudgetDetailsScreen() {
 
   return (
     <ScrollView style={styles.container}>
-      <Stack.Screen 
-        options={{ 
-          title: `Presupuesto #${quote.id.slice(0, 8).toUpperCase()}`,
-          headerRight: () => (
-            <View style={styles.headerActions}>
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onPress={handlePrint}
-                style={styles.headerButton}
-              >
-                <Printer size={20} color={colors.primary[600]} />
-              </Button>
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onPress={handleShare}
-                style={styles.headerButton}
-              >
-                <Share2 size={20} color={colors.primary[600]} />
-              </Button>
-            </View>
-          )
-        }} 
-      />
+      <View style={styles.content}>
+        <Stack.Screen 
+          options={{ 
+            title: `Presupuesto #${quote.id.slice(0, 8).toUpperCase()}`,
+          }} 
+        />
 
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.amount}>${quote.totalAmount.toFixed(2)}</Text>
-          <Badge text={status.label} variant="primary" />
-        </View>
-        
-        {canEdit && (
-          <Button onPress={() => handleEdit(quote.id)} variant="outline" size="sm" leftIcon={<Edit size={16} color={colors.primary[600]} />}>
-            <Text style={{ color: colors.primary[600] }}>Editar</Text>
+        {/* Botones de acción en el contenido principal */}
+        <View style={styles.headerActions}>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onPress={handlePrint}
+            style={styles.headerButton}
+            loading={isGeneratingPDF}
+          >
+            <Printer size={20} color={colors.primary[600]} />
+            <Text style={styles.headerButtonText}>Imprimir</Text>
           </Button>
-        )}
-      </View>
-
-      <Card style={styles.section}>
-        <Text style={styles.sectionTitle}>Información del Cliente</Text>
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Cliente:</Text>
-          <Text style={styles.infoValue}>{quote.customer?.name || 'No especificado'}</Text>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onPress={handleShare}
+            style={styles.headerButton}
+          >
+            <Share2 size={20} color={colors.primary[600]} />
+            <Text style={styles.headerButtonText}>Compartir</Text>
+          </Button>
         </View>
-        
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Contacto:</Text>
-          <View style={styles.contactInfo}>
-            {quote.customer?.email && (
-              <View style={styles.contactItem}>
-                <Mail size={16} color={colors.gray[500]} style={styles.contactIcon} />
-                <Text style={styles.infoValue}>{quote.customer.email}</Text>
-              </View>
-            )}
-            {quote.customer?.phone && (
-              <View style={styles.contactItem}>
-                <Phone size={16} color={colors.gray[500]} style={styles.contactIcon} />
-                <Text style={styles.infoValue}>{quote.customer.phone}</Text>
-              </View>
-            )}
+
+        <View style={styles.header}>
+          <View>
+            <Text style={styles.amount}>${quote.totalAmount.toFixed(2)}</Text>
+            <Badge text={status.label} variant="primary" />
           </View>
+          
+          {canEdit && (
+            <Button onPress={() => handleEdit(quote.id)} variant="outline" size="sm" leftIcon={<Edit size={16} color={colors.primary[600]} />}>
+              <Text style={{ color: colors.primary[600] }}>Editar</Text>
+            </Button>
+          )}
         </View>
-      </Card>
 
-      <Card style={styles.section}>
-        <Text style={styles.sectionTitle}>Detalles de la Orden</Text>
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Orden #:</Text>
-          <Text style={styles.infoValue}>{quote.repairOrderId}</Text>
-        </View>
-        
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Dispositivo:</Text>
-          <Text style={styles.infoValue}>{quote.repairOrder?.items?.[0].brand + ' ' + quote.repairOrder?.items?.[0].model || 'No especificado'}</Text>
-        </View>
-        
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Técnico:</Text>
-          <Text style={styles.infoValue}>{quote.technician?.firstName + ' ' + quote.technician?.lastName || 'No asignado'}</Text>
-        </View>
-        
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Creado:</Text>
-          <Text style={styles.infoValue}>
-            {format(new Date(quote.createdAt || ''), "PP 'a las' hh:mm a")}
-          </Text>
-        </View>
-        
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Actualizado:</Text>
-          <Text style={styles.infoValue}>
-            {format(new Date(quote.updatedAt || ''), "PP 'a las' hh:mm a")}
-          </Text>
-        </View>
-      </Card>
+        <Card style={styles.section}>
+          <Text style={styles.sectionTitle}>Información del Cliente</Text>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Cliente:</Text>
+            <Text style={styles.infoValue}>{quote.customer?.name || 'No especificado'}</Text>
+          </View>
+          
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Contacto:</Text>
+            <View style={styles.contactInfo}>
+              {quote.customer?.email && (
+                <View style={styles.contactItem}>
+                  <Mail size={16} color={colors.gray[500]} style={styles.contactIcon} />
+                  <Text style={styles.infoValue}>{quote.customer.email}</Text>
+                </View>
+              )}
+              {quote.customer?.phone && (
+                <View style={styles.contactItem}>
+                  <Phone size={16} color={colors.gray[500]} style={styles.contactIcon} />
+                  <Text style={styles.infoValue}>{quote.customer.phone}</Text>
+                </View>
+              )}
+            </View>
+          </View>
+        </Card>
 
-      <Card style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Ítems del Presupuesto</Text>
-          <Text style={styles.itemsCount}>({quote.items?.length || 0} ítems)</Text>
-        </View>
-        
-        {quote.items?.length ? (
-          <View style={styles.itemsList}>
-            {quote.items.map((item, index) => (
-              <View key={item.id || index} style={styles.itemRow}>
-                <View style={styles.itemDetails}>
-                  <Text style={styles.itemName}>{item.description}</Text>
-                  <Text style={styles.itemPrice}>
-                    {item.quantity} x ${item.price.toFixed(2)}
+        <Card style={styles.section}>
+          <Text style={styles.sectionTitle}>Detalles de la Orden</Text>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Orden #:</Text>
+            <Text style={styles.infoValue}>{quote.repairOrderId}</Text>
+          </View>
+          
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Dispositivo:</Text>
+            <Text style={styles.infoValue}>{quote.repairOrder?.devices?.[0].brand + ' ' + quote.repairOrder?.devices?.[0].model || 'No especificado'}</Text>
+          </View>
+          
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Técnico:</Text>
+            <Text style={styles.infoValue}>{quote.technician?.firstName + ' ' + quote.technician?.lastName || 'No asignado'}</Text>
+          </View>
+          
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Creado:</Text>
+            <Text style={styles.infoValue}>
+              {format(new Date(quote.createdAt || ''), "PP 'a las' hh:mm a")}
+            </Text>
+          </View>
+          
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Actualizado:</Text>
+            <Text style={styles.infoValue}>
+              {format(new Date(quote.updatedAt || ''), "PP 'a las' hh:mm a")}
+            </Text>
+          </View>
+        </Card>
+
+        <Card style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Ítems del Presupuesto</Text>
+            <Text style={styles.itemsCount}>({quote.items?.length || 0} ítems)</Text>
+          </View>
+          
+          {quote.items?.length ? (
+            <View style={styles.itemsList}>
+              {quote.items.map((item, index) => (
+                <View key={item.id || index} style={styles.itemRow}>
+                  <View style={styles.itemDetails}>
+                    <Text style={styles.itemName}>{item.description}</Text>
+                    <Text style={styles.itemPrice}>
+                      {item.quantity} x ${item.price.toFixed(2)}
+                    </Text>
+                  </View>
+                  <Text style={styles.itemTotal}>
+                    S/{(item.quantity * item.price).toFixed(2)}
                   </Text>
                 </View>
-                <Text style={styles.itemTotal}>
-                  S/{(item.quantity * item.price).toFixed(2)}
-                </Text>
+              ))}
+              
+              <View style={styles.totalRow}>
+                <Text style={styles.totalLabel}>Total:</Text>
+                <Text style={styles.totalAmount}>S/{quote.totalAmount.toFixed(2)}</Text>
               </View>
-            ))}
-            
-            <View style={styles.totalRow}>
-              <Text style={styles.totalLabel}>Total:</Text>
-              <Text style={styles.totalAmount}>S/{quote.totalAmount.toFixed(2)}</Text>
             </View>
-          </View>
-        ) : (
-          <View style={styles.emptyItems}>
-            <FileText size={32} color={colors.gray[300]} />
-            <Text style={styles.emptyItemsText}>No hay ítems en este presupuesto</Text>
+          ) : (
+            <View style={styles.emptyItems}>
+              <FileText size={32} color={colors.gray[300]} />
+              <Text style={styles.emptyItemsText}>No hay ítems en este presupuesto</Text>
+            </View>
+          )}
+        </Card>
+
+        {canApproveReject && (
+          <View style={styles.actionButtons}>
+            <Button 
+              onPress={() => handleStatusChange(QuoteStatus.REJECTED)}
+              variant="outline"
+              style={[styles.actionButton, { borderColor: colors.red[500] }]}
+              loading={isRejecting}
+              disabled={isApproving || isRejecting}
+            >
+              <XCircle size={16} style={{ marginRight: 8 }} />
+              Rechazar
+            </Button>
+            
+            <Button 
+              onPress={() => handleStatusChange(QuoteStatus.APPROVED)}
+              variant="primary"
+              style={[styles.actionButton, { backgroundColor: colors.green[500] }]}
+              loading={isApproving}
+              disabled={isApproving || isRejecting}
+            >
+              <CheckCircle size={16} style={{ marginRight: 8 }} />
+              Aprobar
+            </Button>
           </View>
         )}
-      </Card>
-
-      {canApproveReject && (
-        <View style={styles.actionButtons}>
-          <Button 
-            onPress={() => handleStatusChange(QuoteStatus.REJECTED)}
-            variant="outline"
-            style={[styles.actionButton, { borderColor: colors.red[500] }]}
-            loading={isRejecting}
-            disabled={isApproving || isRejecting}
-          >
-            <XCircle size={16} style={{ marginRight: 8 }} />
-            Rechazar
-          </Button>
-          
-          <Button 
-            onPress={() => handleStatusChange(QuoteStatus.APPROVED)}
-            variant="primary"
-            style={[styles.actionButton, { backgroundColor: colors.green[500] }]}
-            loading={isApproving}
-            disabled={isApproving || isRejecting}
-          >
-            <CheckCircle size={16} style={{ marginRight: 8 }} />
-            Aprobar
-          </Button>
-        </View>
-      )}
-      
-      {quote.status === QuoteStatus.PENDING && (
-        <View style={styles.noteContainer}>
-          <Clock size={16} color={colors.orange[500]} style={styles.noteIcon} />
-          <Text style={styles.noteText}>
-            Este presupuesto está pendiente de aprobación. Vence en 7 días.
-          </Text>
-        </View>
-      )}
+        
+        {quote.status === QuoteStatus.PENDING && (
+          <View style={styles.noteContainer}>
+            <Clock size={16} color={colors.orange[500]} style={styles.noteIcon} />
+            <Text style={styles.noteText}>
+              Este presupuesto está pendiente de aprobación. Vence en 7 días.
+            </Text>
+          </View>
+        )}
+      </View>
     </ScrollView>
   );
 }
@@ -280,42 +317,64 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  content: {
+    flex: 1,
     padding: 16,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  errorText: {
+    color: colors.red[500],
+    marginBottom: 16,
+    textAlign: 'center',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 16,
     padding: 16,
     backgroundColor: colors.white,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.primary[200],
-  },
-  headerActions: {
-    flexDirection: 'row',
-    marginRight: -8,
-  },
-  headerButton: {
-    paddingHorizontal: 8,
-    marginLeft: 8,
+    borderRadius: 8,
+    ...Platform.select({
+      web: {
+        boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+      },
+      default: {
+        elevation: 2,
+      },
+    }),
   },
   amount: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: colors.gray[900],
+    color: colors.primary[800],
+    marginBottom: 4,
   },
   section: {
     marginBottom: 16,
-    margin: 16,
     padding: 16,
     backgroundColor: colors.white,
     borderRadius: 8,
-    shadowColor: colors.gray[900],
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    ...Platform.select({
+      web: {
+        boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+      },
+      default: {
+        elevation: 2,
+      },
+    }),
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -326,11 +385,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: colors.primary[900],
-  },
-  itemsCount: {
-    fontSize: 14,
-    color: colors.primary[500],
+    color: colors.gray[800],
   },
   infoRow: {
     flexDirection: 'row',
@@ -338,13 +393,13 @@ const styles = StyleSheet.create({
   },
   infoLabel: {
     width: 100,
+    color: colors.gray[600],
     fontSize: 14,
-    color: colors.primary[600],
   },
   infoValue: {
     flex: 1,
+    color: colors.gray[900],
     fontSize: 14,
-    color: colors.primary[900],
   },
   contactInfo: {
     flex: 1,
@@ -360,82 +415,72 @@ const styles = StyleSheet.create({
   itemsList: {
     marginTop: 8,
   },
-  itemLabel: {
-    width: 100,
-    fontSize: 14,
-    color: colors.gray[600],
-  },
-  itemValue: {
-    flex: 1,
-    fontSize: 14,
-    color: colors.gray[900],
-  },
-  itemIcon: {
-    marginRight: 8,
-  },
   itemRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: colors.primary[100],
+    borderBottomColor: colors.gray[100],
   },
   itemDetails: {
     flex: 1,
-    marginRight: 12,
   },
   itemName: {
     fontSize: 14,
-    color: colors.primary[900],
+    color: colors.gray[900],
     marginBottom: 4,
   },
   itemPrice: {
-    width: 80,
-    textAlign: 'right',
-    fontSize: 14,
-    color: colors.gray[900],
+    fontSize: 12,
+    color: colors.gray[500],
   },
   itemTotal: {
     fontSize: 14,
     fontWeight: '600',
-    color: colors.primary[900],
-  },
-  totalLabel: {
-    fontSize: 16,
-    fontWeight: '600',
     color: colors.gray[900],
-  },
-  totalAmount: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: colors.primary[700],
   },
   totalRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
     marginTop: 16,
-    paddingTop: 16,
+    paddingTop: 12,
     borderTopWidth: 1,
     borderTopColor: colors.gray[200],
   },
+  totalLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.gray[700],
+  },
+  totalAmount: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.primary[800],
+  },
   emptyItems: {
+    padding: 20,
     alignItems: 'center',
-    paddingVertical: 24,
+    justifyContent: 'center',
+    backgroundColor: colors.gray[50],
+    borderRadius: 8,
+    marginTop: 8,
   },
   emptyItemsText: {
-    marginTop: 12,
-    color: colors.primary[500],
+    marginTop: 8,
+    color: colors.gray[500],
     textAlign: 'center',
   },
   actionButtons: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
+    justifyContent: 'space-between',
     marginTop: 16,
-    marginBottom: 24,
+    marginBottom: 32,
   },
   actionButton: {
-    marginLeft: 12,
-    minWidth: 120,
+    flex: 1,
+    marginHorizontal: 8,
   },
   noteContainer: {
     flexDirection: 'row',
@@ -443,7 +488,8 @@ const styles = StyleSheet.create({
     padding: 12,
     backgroundColor: colors.orange[50],
     borderRadius: 8,
-    marginBottom: 24,
+    marginTop: 16,
+    marginBottom: 32,
   },
   noteIcon: {
     marginRight: 8,
@@ -453,74 +499,21 @@ const styles = StyleSheet.create({
     color: colors.orange[800],
     fontSize: 14,
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-    backgroundColor: colors.background,
+  headerActions: {
+    flexDirection: 'row',
+    marginRight: -8,
   },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-    backgroundColor: colors.background,
+  headerButton: {
+    paddingHorizontal: 8,
   },
-  errorText: {
-    color: colors.red[500],
-    fontSize: 16,
-    marginBottom: 16,
-    textAlign: 'center',
-  },
-  itemDescription: {
-    flex: 2,
+  headerButtonText: {
     fontSize: 14,
-    color: colors.primary[900],
-  },
-  commentsContainer: {
-    flexDirection: 'row',
-    marginTop: 16,
-    padding: 12,
-    backgroundColor: colors.primary[50],
-    borderRadius: 8,
-  },
-  commentsIcon: {
-    marginRight: 8,
-    marginTop: 2,
-  },
-  commentsText: {
-    flex: 1,
-    fontSize: 14,
-    color: colors.primary[700],
-    lineHeight: 20,
-  },
-  actions: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 24,
-    gap: 12,
-  },
-  footer: {
-    margin: 16,
-    marginTop: 8,
-    padding: 16,
-    backgroundColor: colors.primary[50],
-    borderRadius: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  footerIcon: {
-    marginRight: 8,
-    color: colors.primary[500],
-  },
-  footerText: {
-    flex: 1,
-    fontSize: 12,
     color: colors.primary[600],
+    marginLeft: 8,
   },
-  buttonText: {
-    color: colors.white,
-    fontWeight: '500',
+  itemsCount: {
+    fontSize: 12,
+    color: colors.gray[500],
+    marginLeft: 8,
   },
 });

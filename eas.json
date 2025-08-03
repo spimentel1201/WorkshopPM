@@ -7,7 +7,14 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
-      "channel": "development"
+      "channel": "development",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://repairserviceapi-a79i.onrender.com",
+        "EXPO_PUBLIC_AUTH_TOKEN_KEY": "auth_token"
+      },
+      "android": {
+        "gradleCommand": ":app:assembleDebug"
+      }
     },
     "preview": {
       "android": {
@@ -16,7 +23,7 @@
     },
     "preview2": {
       "android": {
-        "gradleCommand": ":app:assembleRelease"
+        "gradleCommand": ":app:assembleDebug"
       }
     },
     "preview3": {
@@ -24,7 +31,14 @@
     },
     "production": {
       "autoIncrement": true,
-      "channel": "production"
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://repairserviceapi-a79i.onrender.com",
+        "EXPO_PUBLIC_AUTH_TOKEN_KEY": "auth_token"
+      },
+      "channel": "production",
+      "android": {
+        "buildType": "apk"
+      }
     }
   },
   "submit": {
