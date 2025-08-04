@@ -1,19 +1,19 @@
-import { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, ScrollView, Alert } from 'react-native';
-import { Stack, useLocalSearchParams, router } from 'expo-router';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Edit, CheckCircle, XCircle, MessageCircle, Phone, Mail, Clock, Printer, Share2, FileText, ArrowLeft } from 'lucide-react-native';
+import { useQueryClient } from '@tanstack/react-query';
+import { router, useLocalSearchParams } from 'expo-router';
+import { ArrowLeft, CheckCircle, Clock, Edit, FileText, Mail, Phone, Printer, Share2, XCircle } from 'lucide-react-native';
+import { useState } from 'react';
+import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { Card } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
 import colors from '@/constants/colors';
-import { useQuotes } from '@/hooks/useQuotes';
 import { useAuth } from '@/hooks/useAuth';
+import { usePDFGenerator } from '@/hooks/usePDFGenerator';
+import { useQuotes } from '@/hooks/useQuotes';
 import { UserRole } from '@/types/auth';
-import { format } from 'date-fns';
-import { es } from 'date-fns/locale/es';
 import { QuoteStatus } from '@/types/quote';
+import { format } from 'date-fns';
 
 export default function BudgetDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -25,6 +25,11 @@ export default function BudgetDetailsScreen() {
   
   const [isApproving, setIsApproving] = useState(false);
   const [isRejecting, setIsRejecting] = useState(false);
+
+  const {
+    isLoading: isGeneratingPDF,
+    generateQuotePDF,
+  } = usePDFGenerator();
 
   const handleStatusChange = async (status: QuoteStatus) => {
     if (!id) return;
@@ -53,14 +58,24 @@ export default function BudgetDetailsScreen() {
     }
   };
 
-  const handlePrint = () => {
-    // TODO: Implement print functionality
-    Alert.alert('Imprimir', 'Funcionalidad de impresión en desarrollo');
+  const handlePrint = async () => {
+    if (!quote) return;
+    
+    const result = await generateQuotePDF(quote);
+    if (result.success) {
+      console.log(result);
+      Alert.alert('Éxito', 'PDF generado correctamente');
+    }
   };
 
-  const handleShare = () => {
-    // TODO: Implement share functionality
-    Alert.alert('Compartir', 'Funcionalidad de compartir en desarrollo');
+  const handleShare = async () => {
+    if (!quote) return;
+    
+    const result = await generateQuotePDF(quote);
+    if (result.success) {
+      console.log(result);
+      Alert.alert('Éxito', 'PDF del presupuesto generado correctamente');
+    }
   };
 
   const handleEdit = (id: string) => {
@@ -105,34 +120,29 @@ export default function BudgetDetailsScreen() {
   const canApproveReject = user?.role === UserRole.ADMIN && quote.status === QuoteStatus.PENDING;
 
   return (
-    <ScrollView style={styles.container}>
-      <Stack.Screen 
-        options={{ 
-          title: `Presupuesto #${quote.id.slice(0, 8).toUpperCase()}`,
-          headerRight: () => (
-            <View style={styles.headerActions}>
-              <Button 
-                variant="ghost" 
-                size="sm" 
+    <>
+
+      <ScrollView style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.sectionTitle}>Presupuesto #${quote.id.slice(0, 8).toUpperCase()}</Text>
+      <View style={styles.headerActions}>
+              <Button
+                variant="ghost"
+                size="sm"
                 onPress={handlePrint}
                 style={styles.headerButton}
               >
                 <Printer size={20} color={colors.primary[600]} />
               </Button>
-              <Button 
-                variant="ghost" 
-                size="sm" 
+              <Button
+                variant="ghost"
+                size="sm"
                 onPress={handleShare}
                 style={styles.headerButton}
               >
                 <Share2 size={20} color={colors.primary[600]} />
               </Button>
             </View>
-          )
-        }} 
-      />
-
-      <View style={styles.header}>
         <View>
           <Text style={styles.amount}>${quote.totalAmount.toFixed(2)}</Text>
           <Badge text={status.label} variant="primary" />
@@ -180,7 +190,12 @@ export default function BudgetDetailsScreen() {
         
         <View style={styles.infoRow}>
           <Text style={styles.infoLabel}>Dispositivo:</Text>
-          <Text style={styles.infoValue}>{quote.repairOrder?.items?.[0].brand + ' ' + quote.repairOrder?.items?.[0].model || 'No especificado'}</Text>
+          <Text style={styles.infoValue}>
+            {quote.repairOrder?.devices?.[0]
+              ? `${quote.repairOrder.devices[0].brand} ${quote.repairOrder.devices[0].model}`
+              : quote.repairOrder?.device || 'No especificado'
+            }
+          </Text>
         </View>
         
         <View style={styles.infoRow}>
@@ -272,7 +287,8 @@ export default function BudgetDetailsScreen() {
           </Text>
         </View>
       )}
-    </ScrollView>
+      </ScrollView>
+    </>
   );
 }
 
@@ -293,8 +309,8 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.primary[200],
   },
   headerActions: {
-    flexDirection: 'row',
-    marginRight: -8,
+    flexDirection: 'column',
+    marginRight: 8,
   },
   headerButton: {
     paddingHorizontal: 8,

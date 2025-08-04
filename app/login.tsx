@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
-import { View, StyleSheet, Alert, KeyboardAvoidingView, Platform, ScrollView, Text, TouchableOpacity } from 'react-native';
-import { Link, router } from 'expo-router';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useAuth } from '@/hooks/useAuth';
+import { router } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -14,11 +14,11 @@ export default function LoginScreen() {
   useEffect(() => {
     console.log('Auth state changed - isAuthenticated:', isAuthenticated);
     if (isAuthenticated) {
-      console.log('Redirecting to /(tabs)/home from useEffect');
+      console.log('Redirecting to /(tabs) from useEffect');
       // Usar setTimeout para asegurar que la navegación ocurra en el siguiente ciclo de eventos
       const timer = setTimeout(() => {
-        router.replace('/(tabs)/home');
-      }, 0);
+        router.replace('/(tabs)');
+      }, 100);
       return () => clearTimeout(timer);
     }
   }, [isAuthenticated]);
@@ -33,7 +33,9 @@ export default function LoginScreen() {
       const success = await login({ email, password });
       
       if (success) {
-        // No hacemos la redirección aquí, dejamos que el useEffect lo maneje
+        console.log('Login successful, redirecting...');
+        // Redirigir inmediatamente después del login exitoso
+        router.replace('/(tabs)');
       } else {
         Alert.alert('Error', 'Inicio de sesión fallido');
       }

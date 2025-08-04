@@ -1,22 +1,19 @@
-import { useQueryClient } from '@tanstack/react-query';
-import { router, Stack, useLocalSearchParams } from 'expo-router';
-import { AlertCircle, CheckCircle, Clock, Edit, Mail, MessageCircle, Phone, UserPlus } from 'lucide-react-native';
-import { useState, useMemo, useRef, useEffect } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, View, Platform, TouchableOpacity, Modal } from 'react-native';
 import { useActionSheet } from '@expo/react-native-action-sheet';
+import { useQueryClient } from '@tanstack/react-query';
+import { Stack, useLocalSearchParams } from 'expo-router';
+import { AlertCircle, CheckCircle, UserPlus } from 'lucide-react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { Alert, Modal, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
+import { PDFSettingsModal } from '@/components/PDFSettingsModal';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
-import { Input } from '@/components/ui/Input';
 import colors from '@/constants/colors';
 import { useAuth } from '@/hooks/useAuth';
 import { useOrders } from '@/hooks/useOrders';
-import { UserRole } from '@/types/auth';
-import { RepairOrder, RepairOrderStatus } from '@/types/repair';
-import { getToken } from '@/src/lib/storage';
 import { usePDFGenerator } from '@/hooks/usePDFGenerator';
-import { PDFSettingsModal } from '@/components/PDFSettingsModal';
+import { getToken } from '@/src/lib/storage';
+import { RepairOrder, RepairOrderStatus } from '@/types/repair';
 
 export default function OrderDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -85,6 +82,7 @@ export default function OrderDetailsScreen() {
       startDate: orderItems.startDate || null,
       endDate: orderItems.endDate || null,
       devices,
+      items: items, // Agregar los items originales para el PDF
       createdAt: orderItems.createdAt || new Date().toISOString(),
       updatedAt: orderItems.updatedAt || new Date().toISOString(),
     };
@@ -352,6 +350,7 @@ export default function OrderDetailsScreen() {
     
     const result = await generateRepairOrderPDF(order as RepairOrder);
     if (result.success) {
+      console.log(result);
       Alert.alert('Éxito', 'PDF generado correctamente');
     }
   };

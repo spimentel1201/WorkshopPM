@@ -1,9 +1,9 @@
-import * as Print from 'expo-print';
+import { Quote } from '@/types/quote';
+import { RepairOrder } from '@/types/repair';
 import * as FileSystem from 'expo-file-system';
+import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { Platform } from 'react-native';
-import { RepairOrder } from '@/types/repair';
-import { Quote } from '@/types/quote';
 
 type PDFOptions = {
   title: string;
@@ -53,7 +53,21 @@ const getHTMLFooter = (options: PDFOptions) => `
   </div>
 `;
 
+const getStatusText = (status: string): string => {
+  switch (status) {
+    case 'RECEIVED': return 'Recibido';
+    case 'DIAGNOSED': return 'Diagnosticado';
+    case 'IN_PROGRESS': return 'En Progreso';
+    case 'WAITING_FOR_PARTS': return 'Esperando Repuestos';
+    case 'COMPLETED': return 'Completado';
+    case 'DELIVERED': return 'Entregado';
+    case 'CANCELLED': return 'Cancelado';
+    default: return status || 'Desconocido';
+  }
+};
+
 export const generateRepairOrderPDF = async (order: RepairOrder, options: Partial<PDFOptions> = {}) => {
+  console.log('generateRepairOrderPDF called with order:', order);
   const pdfOptions = { ...defaultOptions, title: 'Orden de Reparación', ...options };
   
   const html = `
@@ -82,28 +96,51 @@ export const generateRepairOrderPDF = async (order: RepairOrder, options: Partia
         ${getHTMLHeader(pdfOptions)}
         
         <div class="section">
-          <h2 class="section-title">Datos del Cliente</h2>
+          <h2 class="section-title">Información de la Orden</h2>
           <div class="info-grid">
-            <div class="info-label">Cliente:</div>
-            <div>${order.customer?.name || 'No especificado'}</div>
-            <div class="info-label">Teléfono:</div>
-            <div>${order.customer?.phone || 'No especificado'}</div>
-            <div class="info-label">Email:</div>
-            <div>${order.customer?.email || 'No especificado'}</div>
+            <div class="info-label">ID de Orden:</div>
+            <div>#${order.id?.substring(0, 8).toUpperCase() || 'N/A'}</div>
+            <div class="info-label">Estado:</div>
+            <div>${getStatusText(order.status) || 'No especificado'}</div>
+            <div class="info-label">Fecha de Creación:</div>
+            <div>${order.createdAt ? new Date(order.createdAt).toLocaleDateString('es-PE') : 'No especificado'}</div>
           </div>
         </div>
         
         <div class="section">
-          <h2 class="section-title">Dispositivo</h2>
-          ${order.devices?.map(device => `
-            <div style="margin-bottom: 15px;">
-              <div><strong>Tipo:</strong> ${device.type || 'No especificado'}</div>
-              <div><strong>Marca:</strong> ${device.brand || 'No especificado'}</div>
-              <div><strong>Modelo:</strong> ${device.model || 'No especificado'}</div>
-              <div><strong>N° de Serie:</strong> ${device.serialNumber || 'No especificado'}</div>
-              <div><strong>Problema reportado:</strong> ${device.reportedIssue || 'No especificado'}</div>
-            </div>
-          `).join('')}
+          <h2 class="section-title">Datos del Cliente</h2>
+          <div class="info-grid">
+            <div class="info-label">Cliente:</div>
+            <div>${order.customerName || 'No especificado'}</div>
+            <div class="info-label">Teléfono:</div>
+            <div>${order.customerPhone || 'No especificado'}</div>
+            <div class="info-label">Email:</div>
+            <div>${order.customerEmail || 'No especificado'}</div>
+          </div>
+        </div>
+        
+        <div class="section">
+          <h2 class="section-title">Dispositivo${order.devices && order.devices.length > 1 ? 's' : ''}</h2>
+          ${order.devices && order.devices.length > 0 ?
+            order.devices.map(device => `
+              <div style="margin-bottom: 15px; padding: 10px; border: 1px solid #eee; border-radius: 5px;">
+                <div><strong>Tipo:</strong> ${device.type || 'No especificado'}</div>
+                <div><strong>Marca:</strong> ${device.brand || 'No especificado'}</div>
+                <div><strong>Modelo:</strong> ${device.model || 'No especificado'}</div>
+                <div><strong>N° de Serie:</strong> ${device.serialNumber || 'No especificado'}</div>
+                <div><strong>Problema reportado:</strong> ${device.reportedIssue || 'No especificado'}</div>
+                ${device.accessories && device.accessories.length > 0 ? `
+                  <div style="margin-top: 10px;"><strong>Accesorios:</strong></div>
+                  <ul style="margin: 5px 0; padding-left: 20px;">
+                    ${device.accessories.map(acc => `
+                      <li>${acc.name} ${acc.included ? '✓' : '✗'}</li>
+                    `).join('')}
+                  </ul>
+                ` : ''}
+              </div>
+            `).join('')
+            : '<p>No hay dispositivos registrados</p>'
+          }
         </div>
         
         <div class="section">
@@ -125,10 +162,10 @@ export const generateRepairOrderPDF = async (order: RepairOrder, options: Partia
             <tbody>
               ${order.items?.map(item => `
                 <tr>
-                  <td>${item.deviceType + ' ' + item.brand + ' ' + item.model || 'Item sin descripción'}</td>
-                  <td>${item.quantity}</td>
-                  <td>S/ ${item.price.toFixed(2)}</td>
-                  <td>S/ ${(item.quantity * item.price).toFixed(2)}</td>
+                  <td>${[item.deviceType, item.brand, item.model].filter(Boolean).join(' ') || 'Item sin descripción'}</td>
+                  <td>${item.quantity || 1}</td>
+                  <td>S/ ${(item.price || 0).toFixed(2)}</td>
+                  <td>S/ ${((item.quantity || 1) * (item.price || 0)).toFixed(2)}</td>
                 </tr>
               `).join('') || '<tr><td colspan="4" class="text-center">No hay items registrados</td></tr>'}
             </tbody>
@@ -144,7 +181,7 @@ export const generateRepairOrderPDF = async (order: RepairOrder, options: Partia
         <div class="section">
           <div class="signature">
             <p>Firma del Cliente: ________________________</p>
-            <p style="margin-top: 30px;">Técnico: ${order.technician ? `${order.technician.firstName} ${order.technician.lastName}` : 'No asignado'}</p>
+            <p style="margin-top: 30px;">Técnico: ${order.technicianName || 'No asignado'}</p>
           </div>
         </div>
         
@@ -276,31 +313,68 @@ export const generateQuotePDF = async (quote: Quote, options: Partial<PDFOptions
 
 const generateAndSharePDF = async (html: string, fileName: string) => {
   try {
-    // Generate PDF
-    const { uri } = await Print.printToFileAsync({
-      html,
-      base64: false,
-    });
-
-    // Create a new filename with timestamp
-    const newUri = `${FileSystem.documentDirectory}${fileName}`;
+    console.log('Generating PDF with HTML length:', html.length);
+    console.log('HTML preview:', html.substring(0, 500) + '...');
     
-    // Move the file to a permanent location
-    await FileSystem.moveAsync({
-      from: uri,
-      to: newUri,
-    });
+    if (Platform.OS === 'web') {
+      // Para web, usar una estrategia diferente
+      console.log('Using web-specific PDF generation');
+      
+      // Crear una nueva ventana con el HTML para imprimir
+      const printWindow = window.open('', '_blank');
+      if (printWindow) {
+        printWindow.document.write(html);
+        printWindow.document.close();
+        
+        // Esperar a que se cargue y luego imprimir
+        printWindow.onload = () => {
+          setTimeout(() => {
+            printWindow.print();
+          }, 500);
+        };
+        
+        return { success: true, uri: 'web-print' };
+      } else {
+        throw new Error('No se pudo abrir la ventana de impresión');
+      }
+    } else {
+      // Generate PDF with explicit options to ensure HTML rendering
+      const printOptions = {
+        html,
+        base64: false,
+        width: 612,
+        height: 792,
+        margins: {
+          left: 20,
+          top: 20,
+          right: 20,
+          bottom: 20,
+        },
+      };
+      
+      console.log('Print options:', printOptions);
+      const { uri } = await Print.printToFileAsync(printOptions);
 
-    // Share the PDF
-    if (Platform.OS !== 'web') {
+      console.log('PDF generated at:', uri);
+
+      // Create a new filename with timestamp
+      const newUri = `${FileSystem.documentDirectory}${fileName}`;
+      
+      // Move the file to a permanent location
+      await FileSystem.moveAsync({
+        from: uri,
+        to: newUri,
+      });
+
+      // Share the PDF
       await Sharing.shareAsync(newUri, {
         mimeType: 'application/pdf',
         dialogTitle: 'Compartir documento',
         UTI: 'com.adobe.pdf',
       });
-    }
 
-    return { success: true, uri: newUri };
+      return { success: true, uri: newUri };
+    }
   } catch (error) {
     console.error('Error generating PDF:', error);
     return { success: false, error };
