@@ -1,17 +1,15 @@
-import { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, ScrollView, Alert } from 'react-native';
-import { Stack, useLocalSearchParams, router } from 'expo-router';
-import { Plus, X, Check, Save, ArrowLeft } from 'lucide-react-native';
+import { router, Stack, useLocalSearchParams } from 'expo-router';
+import { ArrowLeft, Plus, Save, X } from 'lucide-react-native';
+import { useEffect, useState } from 'react';
+import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
-import { Select } from '@/components/ui/Select';
-import { useQuotes } from '@/hooks/useQuotes';
+import colors from '@/constants/colors';
 import { useAuth } from '@/hooks/useAuth';
 import { useOrders } from '@/hooks/useOrders';
-import colors from '@/constants/colors';
-import { QuoteStatus } from '@/types/quote';
+import { useQuotes } from '@/hooks/useQuotes';
 
 type QuoteItem = {
   id: string;
@@ -214,7 +212,10 @@ export default function EditBudgetScreen() {
         <View style={styles.infoRow}>
           <Text style={styles.infoLabel}>Dispositivo:</Text>
           <Text style={styles.infoValue}>
-            {quote.repairOrder?.device || 'No especificado'}
+            {quote.repairOrder?.devices?.[0]
+              ? `${quote.repairOrder.devices[0].brand} ${quote.repairOrder.devices[0].model}`
+              : quote.repairOrder?.device || 'No especificado'
+            }
           </Text>
         </View>
       </Card>

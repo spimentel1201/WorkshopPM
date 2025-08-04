@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import colors from '@/constants/colors';
 import { useAuth } from '@/hooks/useAuth';
+import { useOrders } from '@/hooks/useOrders';
 import { usePDFGenerator } from '@/hooks/usePDFGenerator';
 import { useQuotes } from '@/hooks/useQuotes';
 import { UserRole } from '@/types/auth';
@@ -19,9 +20,20 @@ export default function BudgetDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { user } = useAuth();
   const { getQuoteById, updateQuoteStatus } = useQuotes();
+  const { getOrder } = useOrders();
   const queryClient = useQueryClient();
   
   const { data: quote, isLoading, error } = getQuoteById(id || '');
+  
+  // Get repair order data separately to ensure we have device information
+  const { data: repairOrder, isLoading: isLoadingOrder } = getOrder(quote?.repairOrderId || '');
+  
+  // Debug logging
+  console.log('Quote data:', quote);
+  console.log('RepairOrder from quote:', quote?.repairOrder);
+  console.log('RepairOrder from orders hook:', repairOrder);
+  console.log('Devices from quote:', quote?.repairOrder?.devices);
+  console.log('Devices from repair order:', repairOrder?.devices);
   
   const [isApproving, setIsApproving] = useState(false);
   const [isRejecting, setIsRejecting] = useState(false);
@@ -95,7 +107,7 @@ export default function BudgetDetailsScreen() {
     return statusConfig[status] || { label: status, color: colors.gray[500] };
   };
 
-  if (isLoading) {
+  if (isLoading || isLoadingOrder) {
     return (
       <View style={styles.loadingContainer}>
         <Text>Cargando presupuesto...</Text>
@@ -191,9 +203,9 @@ export default function BudgetDetailsScreen() {
         <View style={styles.infoRow}>
           <Text style={styles.infoLabel}>Dispositivo:</Text>
           <Text style={styles.infoValue}>
-            {quote.repairOrder?.devices?.[0]
-              ? `${quote.repairOrder.devices[0].brand} ${quote.repairOrder.devices[0].model}`
-              : quote.repairOrder?.device || 'No especificado'
+            {repairOrder?.devices?.[0]
+              ? `${repairOrder.devices[0].brand} ${repairOrder.devices[0].model}`
+              : quote.repairOrder?.device || repairOrder?.description || 'No especificado'
             }
           </Text>
         </View>
@@ -217,6 +229,56 @@ export default function BudgetDetailsScreen() {
           </Text>
         </View>
       </Card>
+
+      {/* Device Information Section */}
+      {repairOrder?.devices && repairOrder.devices.length > 0 && (
+        <Card style={styles.section}>
+          <Text style={styles.sectionTitle}>Información del Dispositivo</Text>
+          {repairOrder.devices.map((device, index) => (
+            <View key={device.id || index} style={[index > 0 && { marginTop: 16, paddingTop: 16, borderTopWidth: 1, borderTopColor: colors.neutral[200] }]}>
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Tipo:</Text>
+                <Text style={styles.infoValue}>{device.type || 'No especificado'}</Text>
+              </View>
+              
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Marca:</Text>
+                <Text style={styles.infoValue}>{device.brand || 'No especificado'}</Text>
+              </View>
+              
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Modelo:</Text>
+                <Text style={styles.infoValue}>{device.model || 'No especificado'}</Text>
+              </View>
+              
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>N° de Serie:</Text>
+                <Text style={styles.infoValue}>{device.serialNumber || 'No especificado'}</Text>
+              </View>
+              
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Problema:</Text>
+                <Text style={styles.infoValue}>{device.reportedIssue || 'No especificado'}</Text>
+              </View>
+              
+              {device.accessories && device.accessories.length > 0 && (
+                <>
+                  <View style={styles.infoRow}>
+                    <Text style={styles.infoLabel}>Accesorios:</Text>
+                    <View style={styles.infoValue}>
+                      {device.accessories.map((accessory, accIndex) => (
+                        <Text key={accIndex} style={styles.infoValue}>
+                          • {accessory.name} {accessory.included ? '✓' : '✗'}
+                        </Text>
+                      ))}
+                    </View>
+                  </View>
+                </>
+              )}
+            </View>
+          ))}
+        </Card>
+      )}
 
       <Card style={styles.section}>
         <View style={styles.sectionHeader}>
@@ -538,5 +600,8 @@ const styles = StyleSheet.create({
   buttonText: {
     color: colors.white,
     fontWeight: '500',
+  },
+  deviceInfo: {
+    marginBottom: 16,
   },
 });

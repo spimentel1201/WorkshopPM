@@ -1,16 +1,16 @@
-import { useState, useMemo } from 'react';
-import { StyleSheet, Text, View, FlatList, Pressable, TextInput } from 'react-native';
 import { router } from 'expo-router';
-import { Search, Plus, FileText, CheckCircle, XCircle, Filter } from 'lucide-react-native';
+import { CheckCircle, FileText, Filter, Plus, Search, XCircle } from 'lucide-react-native';
+import { useMemo, useState } from 'react';
+import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { Card } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
-import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/EmptyState';
-import { useQuotes } from '@/hooks/useQuotes';
-import { useAuth } from '@/hooks/useAuth';
-import { UserRole } from '@/types/auth';
+import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
 import colors from '@/constants/colors';
+import { useAuth } from '@/hooks/useAuth';
+import { useQuotes } from '@/hooks/useQuotes';
+import { UserRole } from '@/types/auth';
 import { QuoteStatus } from '@/types/quote';
 
 export default function BudgetsScreen() {
@@ -19,15 +19,31 @@ export default function BudgetsScreen() {
   const { getQuotes, updateQuoteStatus } = useQuotes();
   
   const { data: quotes, isLoading, error } = getQuotes;
+  
+  // Debug logging
+  console.log('Quotes data:', quotes);
+  if (quotes && quotes.length > 0) {
+    console.log('First quote:', quotes[0]);
+    console.log('First quote repairOrder:', quotes[0].repairOrder);
+    console.log('First quote devices:', quotes[0].repairOrder?.devices);
+  }
 
   // Filter quotes based on search query
   const filteredQuotes = useMemo(() => {
     if (!quotes) return [];
-    return quotes.filter(quote => 
-      quote.customer?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      quote.repairOrder?.device?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      quote.id.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    return quotes.filter(quote => {
+      const customerName = quote.customer?.name?.toLowerCase() || '';
+      const deviceInfo = quote.repairOrder?.devices && quote.repairOrder.devices.length > 0
+        ? `${quote.repairOrder.devices[0].brand || ''} ${quote.repairOrder.devices[0].model || ''} ${quote.repairOrder.devices[0].deviceType || ''}`.toLowerCase()
+        : (quote.repairOrder?.device || '').toLowerCase();
+      const quoteId = quote.id.toLowerCase();
+      
+      const searchTerm = searchQuery.toLowerCase();
+      
+      return customerName.includes(searchTerm) ||
+             deviceInfo.includes(searchTerm) ||
+             quoteId.includes(searchTerm);
+    });
   }, [quotes, searchQuery]);
 
   const handleCreateBudget = () => {
@@ -122,7 +138,11 @@ export default function BudgetsScreen() {
                   
                   <View style={styles.quoteInfo}>
                     <Text style={styles.device}>
-                      {item.repairOrder?.device || 'Dispositivo no especificado'}
+                      {/* Try multiple sources for device information */}
+                      {item.repairOrder?.devices && item.repairOrder.devices.length > 0
+                        ? `${item.repairOrder.devices[0].brand || 'Sin marca'} ${item.repairOrder.devices[0].model || 'Sin modelo'} (${item.repairOrder.devices[0].deviceType || 'Tipo no especificado'})`
+                        : item.repairOrder?.device || `Orden #${item.repairOrderId?.slice(0, 8) || 'N/A'}`
+                      }
                     </Text>
                     <Text style={styles.quoteId}>
                       #{item.id.slice(0, 6).toUpperCase()}

@@ -251,7 +251,9 @@ export const generateQuotePDF = async (quote: Quote, options: Partial<PDFOptions
         
         <div class="section">
           <h2 class="section-title">Descripción</h2>
-          <p>${quote?.repairOrder?.device || 'No se proporcionó una descripción.'}</p>
+          <p>${quote?.repairOrder?.devices?.[0] ? 
+            `${quote.repairOrder.devices[0].brand} ${quote.repairOrder.devices[0].model}` : 
+            'No se proporcionó una descripción.'}</p>
         </div>
         
         <div class="section">
