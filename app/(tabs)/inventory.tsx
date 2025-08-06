@@ -10,7 +10,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { Product } from '@/types/inventory';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import type { ListRenderItem } from 'react-native';
 import { Alert, FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
@@ -27,47 +27,26 @@ import { Alert, FlatList, RefreshControl, StyleSheet, Text, View } from 'react-n
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
     const [refreshing, setRefreshing] = useState(false);
-    const [isSearching, setIsSearching] = useState(false);
   
-    // Initialize all queries at the top level
+    // Initialize queries - simplified approach like pos.tsx
     const { 
       getProducts: productsQuery, 
-      searchProducts,
       getCategories, 
       deleteProduct 
-    } = useProducts({ query: searchQuery });
-  
-    // Handle search query changes
-    useEffect(() => {
-      if (searchQuery) {
-        setIsSearching(true);
-        const timer = setTimeout(() => {
-          searchProducts.refetch().finally(() => setIsSearching(false));
-        }, 500);
-        return () => clearTimeout(timer);
-      } else {
-        setIsSearching(false);
-      }
-    }, [searchQuery, searchProducts]);
+    } = useProducts();
   
     // Handle pull-to-refresh
     const onRefresh = useCallback(async () => {
       try {
         setRefreshing(true);
-        const promises = [
+        await Promise.allSettled([
           productsQuery.refetch(),
           getCategories.refetch()
-        ];
-        
-        if (searchQuery) {
-          promises.push(searchProducts.refetch());
-        }
-        
-        await Promise.allSettled(promises);
+        ]);
       } finally {
         setRefreshing(false);
       }
-    }, [productsQuery, getCategories, searchProducts, searchQuery]);
+    }, [productsQuery, getCategories]);
   
     // Handle product deletion
     const handleDeleteProduct = useCallback((productId: string) => {
@@ -102,19 +81,33 @@ import { Alert, FlatList, RefreshControl, StyleSheet, Text, View } from 'react-n
       router.push(`/inventory/${productId}/edit`);
     }, [router]);
   
-    // Filter products by category
+    // Filter products locally like pos.tsx - much simpler and more efficient
     const filteredProducts = useMemo(() => {
-      if (searchQuery && searchProducts.data) {
-        return searchProducts.data;
+      if (!productsQuery.data) return [];
+      
+      let products = productsQuery.data;
+      
+      // Filter by search query
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        products = products.filter((product: Product) => 
+          product.name.toLowerCase().includes(query) ||
+          product.description.toLowerCase().includes(query) ||
+          (product.category && product.category.toLowerCase().includes(query))
+        );
       }
-      return (productsQuery.data || []).filter(
-        (product: Product) => !selectedCategory || product.category === selectedCategory
-      );
-    }, [searchQuery, searchProducts.data, productsQuery.data, selectedCategory]);
+      
+      // Filter by category if selected
+      if (selectedCategory) {
+        products = products.filter(product => product.category === selectedCategory);
+      }
+      
+      return products;
+    }, [productsQuery.data, searchQuery, selectedCategory]);
   
-    // Loading and error states
-    const isLoading = productsQuery.isLoading || getCategories.isLoading || isSearching;
-    const error = productsQuery.error || getCategories.error || searchProducts.error;
+    // Loading and error states - simplified
+    const isLoading = productsQuery.isLoading || getCategories.isLoading;
+    const error = productsQuery.error || getCategories.error;
   
     // Render product item
     const renderProductItem: ListRenderItem<Product> = useCallback(({ item }) => (
@@ -192,7 +185,7 @@ import { Alert, FlatList, RefreshControl, StyleSheet, Text, View } from 'react-n
           )}
         </View>
       </Card>
-    ), [handleDeleteProduct, handleEditProduct, isDark, user?.role]); // Eliminar getDeleteLabel de las dependencias
+    ), [handleDeleteProduct, handleEditProduct, isDark, user?.role]);
 
     // Early returns for loading and error states
     if (isLoading && !refreshing) {
@@ -206,9 +199,6 @@ import { Alert, FlatList, RefreshControl, StyleSheet, Text, View } from 'react-n
           onRetry={() => {
             productsQuery.refetch();
             getCategories.refetch();
-            if (searchQuery) {
-              searchProducts.refetch();
-            }
           }} 
         />
       );
@@ -226,7 +216,7 @@ import { Alert, FlatList, RefreshControl, StyleSheet, Text, View } from 'react-n
           
           {user?.role === 'ADMIN' && (
             <Button 
-              onPress={() => router.push('/inventory/create')}  // Asegúrate que es '/inventory/create' y no '/inventory/new'
+              onPress={() => router.push('/inventory/create')}
               style={styles.addButton}
             >
               <MaterialIcons name="add" size={20} color="white" />
@@ -253,7 +243,9 @@ import { Alert, FlatList, RefreshControl, StyleSheet, Text, View } from 'react-n
               title="No hay productos"
               description={searchQuery
                 ? "No se encontraron productos que coincidan con tu búsqueda."
-                : "No hay productos disponibles. Agrega uno nuevo para comenzar."} icon={undefined} />
+                : "No hay productos disponibles. Agrega uno nuevo para comenzar."} 
+              icon={undefined} 
+            />
           }
           ItemSeparatorComponent={() => <View style={styles.separator} />}
         />
